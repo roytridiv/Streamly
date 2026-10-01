@@ -23,13 +23,14 @@
 
 ## Agent Execution Log & Prompt History
 Chronological log of the key agent prompt workflows. Append new entries at the bottom; keep each entry short and point to the files it touched.
+Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-history.md` by the `UserPromptSubmit` hook in `.claude/settings.json`.
 
 | # | Workflow | Status | Commit |
 |---|----------|--------|--------|
 | 1 | Setup & Dependencies | Done | `d15dda8`, `bd8fd44` |
 | 2 | Domain & Data Layer | Done | `4636bc9` |
-| 3 | Media3 ExoPlayer & Home Screen MVI UI | Done (uncommitted) | — |
-| 4 | Player Screen & Navigation 3 Routing | Pending | — |
+| 3 | Media3 ExoPlayer & Home Screen MVI UI | Done | `6dd6fe4` |
+| 4 | Player Screen & Navigation 3 Routing | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -48,4 +49,6 @@ Chronological log of the key agent prompt workflows. Append new entries at the b
 
 ### 4. Player Screen & Navigation 3 Routing
 - Prompt: Add the Player screen bound to the shared ExoPlayer and replace the temporary root in `MainActivity` with a Nav3 back stack (Home → Player).
-- Status: Pending — `MainActivity` still hosts `HomeRoute(onNavigateToPlayer = {})` with a Nav3 TODO.
+- Navigation: `presentation/navigation/StreamlyNavKeys.kt` (`HomeKey`, `PlayerKey(videoId)`), `StreamlyNavDisplay.kt` (`NavDisplay` + saveable-state and per-entry ViewModel-store decorators); `MainActivity.kt` now hosts `StreamlyNavDisplay` with `WindowSizeClass`.
+- Player MVI: `presentation/player/PlayerUiState.kt` (Loading/Success/Empty/Error), `PlayerUiEvent.kt` (`Retry`), `PlayerViewModel.kt` (Hilt assisted `videoId`, drives shared `ExoPlayer`, stops but never releases it), `PlayerScreen.kt` (`PlayerView` via `AndroidView`; fullscreen on compact height, side-by-side on expanded width).
+- Build: `lifecycle-viewmodel-navigation3` added (`gradle/libs.versions.toml`, `app/build.gradle.kts`); player strings in `res/values/strings.xml`.

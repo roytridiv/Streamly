@@ -60,6 +60,7 @@ dependencies {
     // Navigation 3 (Nav3) / Compose Navigation
     implementation("androidx.navigation3:navigation3-runtime:1.1.7")
     implementation("androidx.navigation3:navigation3-ui:1.1.7")
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
     // Ktor Client
     val ktorVersion = "2.3.11"

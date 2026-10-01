@@ -7,4 +7,10 @@
     <string name="home_retry">Retry</string>
     <string name="home_error_generic">Something went wrong. Check your connection and try again.</string>
     <string name="home_empty">No videos yet.</string>
+
+    <!-- Player -->
+    <string name="player_back">Back</string>
+    <string name="player_retry">Retry</string>
+    <string name="player_empty">This video isn\u2019t available to play.</string>
+    <string name="player_error_generic">Couldn\u2019t play this video. Check your connection and try again.</string>
 </resources>
