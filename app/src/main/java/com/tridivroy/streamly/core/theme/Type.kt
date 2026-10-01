@@ -1,4 +1,4 @@
-package com.tridivroy.streamly.ui.theme
+package com.tridivroy.streamly.core.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

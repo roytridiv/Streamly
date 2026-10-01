@@ -1,4 +1,4 @@
-package com.tridivroy.streamly.ui.theme
+package com.tridivroy.streamly.core.theme
 
 import android.app.Activity
 import android.os.Build
