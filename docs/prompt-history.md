@@ -235,3 +235,25 @@ Now proceed to  implement Offline Video Downloads and DataStore Preferences:
 Strictly maintain 100% Jetpack Compose and Clean Architecture guidelines.
 </pasted_content id="3f88">
 ````
+
+## 2026-10-01 21:03:51 +06 · session `d11e0c80`
+
+````text
+
+
+<pasted_content id="3f88">
+Create a new file 'docs/project-overview-guide.md' to serve as a comprehensive Project Overview & Architecture Guide for Streamly.
+
+The document should cover:
+1. Executive Architecture Overview: Explain how Clean Architecture (:core, :data, :domain, :presentation) is maintained, highlighting data flow from Ktor network requests to Compose UI.
+2. Core Technical Decisions:
+   - Media3 ExoPlayer setup: Shared Singleton vs Dual-Player Pooling for Shorts (how lag-free pre-buffering works).
+   - Offline Download Architecture: MediaDownloadService & DownloadTracker handling HLS streams offline.
+   - Navigation 3 (Nav3) setup: StreamlyNavDisplay, key-based destinations, and ViewModel scoping.
+   - MVI State Management & DataStore preferences.
+3. Key Files & Responsibilities: Table listing critical files across all layers.
+4. Technical Walkthrough & Q&A: Top 10 high-frequency architecture and implementation questions with concise, model answers.
+
+Note: Create 'docs/project-overview-guide.md' directly without modifying the core development steps in AGENTS.md. Keep it clear, professional, and easy to review.
+</pasted_content id="3f88">
+````
