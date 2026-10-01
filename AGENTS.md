@@ -31,7 +31,8 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 | 2 | Domain & Data Layer | Done | `4636bc9` |
 | 3 | Media3 ExoPlayer & Home Screen MVI UI | Done | `6dd6fe4` |
 | 4 | Player Screen & Navigation 3 Routing | Done | `4dd76bb` |
-| 5 | Shorts Feed & Home/Shorts Tabs | Done (uncommitted) | — |
+| 5 | Shorts Feed & Home/Shorts Tabs | Done | `6f6e98f` |
+| 6 | Offline Downloads & DataStore Preferences | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -60,3 +61,12 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 - Shorts MVI: `presentation/shorts/ShortsUiState.kt` (Loading/Success/Empty/Error; `activeIndex`, `preloadIndex`, `isPaused`, `likedIds`), `ShortsUiEvent.kt` (page settled, toggle play, like, share, screen start/stop, retry + `Share` effect), `ShortsViewModel.kt`, `ShortsScreen.kt` (`VerticalPager`, switches playback on `settledPage`, tap-to-pause, buffering spinner + polled progress bar, share via `ACTION_SEND` chooser).
 - Navigation: `presentation/navigation/NavGraph.kt` (`StreamlyNavGraph`; bottom bar on compact width, `NavigationRail` on medium/expanded, hidden on Player; back stack `[Home]` / `[Home, Shorts]`), `ShortsKey` in `StreamlyNavKeys.kt`; nav/shorts strings in `res/values/strings.xml`.
 - Verified on device (SM-M015G, Android 10): 2 player inits, swipe plays preloaded clip, tap-pause works, both players released on switching back to Home.
+
+### 6. Offline Downloads & DataStore Preferences
+- Prompt: Media3 `DownloadManager` + service for offline HLS with state tracking (Downloading/Downloaded/Failed); DataStore for favourites, playback quality and theme; Compose Downloads screen with offline playback; Downloads tab in Nav3. 100% Compose, Clean Architecture.
+- Domain: `domain/model/VideoDownload.kt` (`DownloadStatus` Queued/Downloading/Downloaded/Failed), `domain/model/UserPreferences.kt` (`PlaybackQuality`, `ThemeMode`), `domain/repository/DownloadRepository.kt`, `domain/repository/PreferencesRepository.kt`.
+- Data: `data/local/datastore/UserPreferencesRepository.kt` (implements `PreferencesRepository`); `core/di/DataStoreModule.kt`; bindings in `core/di/RepositoryModule.kt`.
+- Media: `core/media/DownloadTracker.kt` (implements `DownloadRepository`; `DownloadHelper` picks one rendition capped by the quality pref; video metadata stored in the request for offline use; polled progress), `core/media/MediaDownloadService.kt` (Hilt `DownloadService`, progress notification, `PlatformScheduler`), `core/di/DownloadModule.kt` (DB provider, non-evicting `SimpleCache`, `DownloadManager`); `core/di/MediaModule.kt` now plays through a read-only `CacheDataSource`, so downloads play offline in every player.
+- Presentation: `presentation/downloads/` (`DownloadsUiState`, `DownloadsUiEvent`, `DownloadsViewModel`, `DownloadsScreen` — adaptive grid, progress, retry, remove); `presentation/settings/` (`SettingsViewModel`, `SettingsSheet` opened from Home); Player gets a download button, offline metadata fallback, downloaded stream keys and the quality cap; Shorts likes persist as favourites; `MainViewModel` + `MainActivity` apply the theme (system-bar icons follow it); `core/theme/StreamlyIcons.kt` (download icon); `DownloadsKey` + tab in `NavGraph.kt`.
+- Manifest/resources: `FOREGROUND_SERVICE(_DATA_SYNC)`, `POST_NOTIFICATIONS` (requested on first download), `RECEIVE_BOOT_COMPLETED`; `MediaDownloadService` (`dataSync`) and `PlatformSchedulerService`; download/settings strings.
+- Verified on device (SM-M015G, Android 10): theme + quality persist across reinstall; 480p download of a 6-min HLS stream (46 MB) with live progress and notification; cold start with mobile data off plays it from the Downloads tab.

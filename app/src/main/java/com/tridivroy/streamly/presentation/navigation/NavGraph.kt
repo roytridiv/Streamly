@@ -30,6 +30,8 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.core.theme.StreamlyIcons
+import com.tridivroy.streamly.presentation.downloads.DownloadsRoute
 import com.tridivroy.streamly.presentation.home.HomeRoute
 import com.tridivroy.streamly.presentation.player.PlayerRoute
 import com.tridivroy.streamly.presentation.shorts.ShortsRoute
@@ -42,12 +44,13 @@ private enum class TopLevelDestination(
 ) {
     Home(HomeKey, Icons.Filled.Home, R.string.nav_home),
     Shorts(ShortsKey, Icons.Filled.PlayArrow, R.string.nav_shorts),
+    Downloads(DownloadsKey, StreamlyIcons.Download, R.string.nav_downloads),
 }
 
 /**
- * App navigation: a single Nav3 back stack rooted at [HomeKey]. Shorts sits on top of Home
- * (`[Home, Shorts]`), so system back from Shorts returns to Home, and leaving the Shorts tab pops
- * its entry — releasing its player pool. The tab UI is a bottom bar on compact widths and a
+ * App navigation: a single Nav3 back stack rooted at [HomeKey]. Other tabs sit on top of Home
+ * (`[Home, Shorts]`, `[Home, Downloads]`), so system back returns to Home, and leaving the Shorts
+ * tab pops its entry — releasing its player pool. Downloads can push the Player for offline playback. The tab UI is a bottom bar on compact widths and a
  * navigation rail on medium/expanded (tablets, unfolded foldables); it is hidden on the Player.
  */
 @Composable
@@ -110,6 +113,9 @@ fun StreamlyNavGraph(
                     }
                     entry<ShortsKey> {
                         ShortsRoute()
+                    }
+                    entry<DownloadsKey> {
+                        DownloadsRoute(onNavigateToPlayer = { videoId -> backStack.add(PlayerKey(videoId)) })
                     }
                     entry<PlayerKey> { key ->
                         PlayerRoute(

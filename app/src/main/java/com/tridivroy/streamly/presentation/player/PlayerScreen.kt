@@ -1,6 +1,11 @@
 package com.tridivroy.streamly.presentation.player
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,18 +15,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -30,6 +42,8 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,16 +53,24 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.core.theme.StreamlyIcons
+import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.domain.model.VideoDownload
+import kotlin.math.roundToInt
 
 /** Stateful entry point: wires [PlayerViewModel] to the stateless [PlayerScreen]. */
 @Composable
@@ -62,12 +84,42 @@ fun PlayerRoute(
     ),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.effects.collect { effect ->
+                when (effect) {
+                    is PlayerUiEffect.DownloadFailed -> snackbarHostState.showSnackbar(
+                        context.getString(R.string.player_download_error, effect.message.orEmpty()),
+                    )
+                }
+            }
+        }
+    }
+
+    // Android 13+: the download progress notification needs permission. Downloads run either way.
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val onEvent: (PlayerUiEvent) -> Unit = remember(viewModel) {
+        { event ->
+            if (event == PlayerUiEvent.OnDownloadClick &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            viewModel.onEvent(event)
+        }
+    }
 
     PlayerScreen(
         uiState = uiState,
         player = viewModel.player,
         windowSizeClass = windowSizeClass,
-        onEvent = viewModel::onEvent,
+        snackbarHostState = snackbarHostState,
+        onEvent = onEvent,
         onBack = onBack,
     )
 }
@@ -77,6 +129,7 @@ fun PlayerScreen(
     uiState: PlayerUiState,
     player: Player,
     windowSizeClass: WindowSizeClass,
+    snackbarHostState: SnackbarHostState,
     onEvent: (PlayerUiEvent) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -98,6 +151,7 @@ fun PlayerScreen(
             uiState = uiState,
             player = player,
             isExpandedWidth = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded,
+            snackbarHostState = snackbarHostState,
             onEvent = onEvent,
             onBack = onBack,
             modifier = modifier,
@@ -111,12 +165,14 @@ private fun PlayerScaffold(
     uiState: PlayerUiState,
     player: Player,
     isExpandedWidth: Boolean,
+    snackbarHostState: SnackbarHostState,
     onEvent: (PlayerUiEvent) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {},
@@ -162,7 +218,12 @@ private fun PlayerScaffold(
                             .aspectRatio(16f / 9f)
                             .background(Color.Black),
                     )
-                    VideoDetails(video = uiState.video, modifier = Modifier.weight(0.35f))
+                    VideoDetails(
+                        video = uiState.video,
+                        download = uiState.download,
+                        onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
+                        modifier = Modifier.weight(0.35f),
+                    )
                 }
             } else {
                 Column(contentModifier) {
@@ -173,7 +234,12 @@ private fun PlayerScaffold(
                             .aspectRatio(16f / 9f)
                             .background(Color.Black),
                     )
-                    VideoDetails(video = uiState.video, modifier = Modifier.padding(16.dp))
+                    VideoDetails(
+                        video = uiState.video,
+                        download = uiState.download,
+                        onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
+                        modifier = Modifier.padding(16.dp),
+                    )
                 }
             }
         }
@@ -208,6 +274,8 @@ private fun VideoSurface(
 @Composable
 private fun VideoDetails(
     video: Video,
+    download: VideoDownload?,
+    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState())) {
@@ -220,10 +288,39 @@ private fun VideoDetails(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
+        Spacer(Modifier.height(12.dp))
+        DownloadButton(download = download, onClick = onDownloadClick)
         if (video.description.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             Text(text = video.description, style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+
+/** One button that reflects and drives the download lifecycle (see PlayerUiEvent.OnDownloadClick). */
+@Composable
+private fun DownloadButton(
+    download: VideoDownload?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val icon = when (download?.status) {
+        null -> StreamlyIcons.Download
+        DownloadStatus.Queued, DownloadStatus.Downloading -> Icons.Filled.Close
+        DownloadStatus.Downloaded -> Icons.Filled.CheckCircle
+        DownloadStatus.Failed -> Icons.Filled.Refresh
+    }
+    val label = when (download?.status) {
+        null -> stringResource(R.string.player_download)
+        DownloadStatus.Queued -> stringResource(R.string.player_download_queued)
+        DownloadStatus.Downloading -> stringResource(R.string.player_download_cancel, download.progressPercent?.roundToInt() ?: 0)
+        DownloadStatus.Downloaded -> stringResource(R.string.player_downloaded)
+        DownloadStatus.Failed -> stringResource(R.string.player_download_failed)
+    }
+    OutlinedButton(onClick = onClick, modifier = modifier) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.size(8.dp))
+        Text(label)
     }
 }
 

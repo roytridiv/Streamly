@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +33,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +57,7 @@ import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
 import com.tridivroy.streamly.core.theme.StreamlyTheme
 import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.presentation.settings.SettingsSheet
 
 /** Stateful entry point: wires [HomeViewModel] to the stateless [HomeScreen]. */
 @Composable
@@ -74,7 +79,13 @@ fun HomeRoute(
         }
     }
 
-    HomeScreen(uiState = uiState, onEvent = viewModel::onEvent)
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+
+    HomeScreen(uiState = uiState, onEvent = viewModel::onEvent, onSettingsClick = { showSettings = true })
+
+    if (showSettings) {
+        SettingsSheet(onDismiss = { showSettings = false })
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +93,7 @@ fun HomeRoute(
 fun HomeScreen(
     uiState: HomeUiState,
     onEvent: (HomeUiEvent) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -94,6 +106,9 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = { onEvent(HomeUiEvent.Refresh) }) {
                         Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.home_refresh))
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_open))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -291,6 +306,7 @@ private fun HomeScreenSuccessPreview() {
                 categories = previewVideos.map { it.category }.distinct(),
             ),
             onEvent = {},
+            onSettingsClick = {},
         )
     }
 }
@@ -299,6 +315,6 @@ private fun HomeScreenSuccessPreview() {
 @Composable
 private fun HomeScreenErrorPreview() {
     StreamlyTheme {
-        HomeScreen(uiState = HomeUiState.Error(message = null), onEvent = {})
+        HomeScreen(uiState = HomeUiState.Error(message = null), onEvent = {}, onSettingsClick = {})
     }
 }

@@ -217,3 +217,21 @@ Proceed to Step 5: Implement TikTok/Reels style vertical Shorts Feed:
 5. Update AGENTS.md log with prompt details and affected files.
 </pasted_content id="3f88">
 ````
+
+## 2026-10-01 20:36:57 +06 · session `d11e0c80`
+
+````text
+
+
+<pasted_content id="3f88">
+Now proceed to  implement Offline Video Downloads and DataStore Preferences:
+
+1. In core/media/DownloadTracker.kt & MediaDownloadService.kt: Implement Media3 DownloadManager service for downloading HLS streams for offline playback with download state tracking (Downloading, Downloaded, Failed).
+2. In data/local/datastore/UserPreferencesRepository.kt: Implement DataStore Preferences to manage user session state (e.g., favorite videos, playback settings/quality, theme preference).
+3. In presentation/downloads/DownloadsScreen.kt: Build Compose UI listing downloaded offline videos allowing playback without internet access.
+4. Update presentation/navigation/NavGraph.kt: Add Downloads destination/tab to the navigation hierarchy.
+5. Update AGENTS.md log with the prompt details and affected files.
+
+Strictly maintain 100% Jetpack Compose and Clean Architecture guidelines.
+</pasted_content id="3f88">
+````

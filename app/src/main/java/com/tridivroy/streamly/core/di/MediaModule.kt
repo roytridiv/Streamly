@@ -10,6 +10,9 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
@@ -28,20 +31,37 @@ object MediaModule {
     private const val READ_TIMEOUT_MS = 30_000
     private const val SEEK_INCREMENT_MS = 10_000L
 
+    /** Network source shared by playback and the download manager. */
+    @OptIn(UnstableApi::class)
+    @Provides
+    @Singleton
+    fun provideHttpDataSourceFactory(): HttpDataSource.Factory =
+        DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
+            .setReadTimeoutMs(READ_TIMEOUT_MS)
+
     /**
      * Picks the right source per item: `.m3u8` URLs (or MimeTypes.APPLICATION_M3U8)
      * become HLS sources via media3-exoplayer-hls, everything else progressive.
+     *
+     * Reads go through the download cache first (read-only: streaming never writes to it), so any
+     * downloaded video plays offline from every player that uses this factory.
      */
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
-    fun provideMediaSourceFactory(@ApplicationContext context: Context): MediaSource.Factory {
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
-            .setReadTimeoutMs(READ_TIMEOUT_MS)
-        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
-        return DefaultMediaSourceFactory(dataSourceFactory)
+    fun provideMediaSourceFactory(
+        @ApplicationContext context: Context,
+        httpDataSourceFactory: HttpDataSource.Factory,
+        downloadCache: Cache,
+    ): MediaSource.Factory {
+        val upstreamFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(downloadCache)
+            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setCacheWriteDataSinkFactory(null)
+        return DefaultMediaSourceFactory(cacheDataSourceFactory)
     }
 
     /**

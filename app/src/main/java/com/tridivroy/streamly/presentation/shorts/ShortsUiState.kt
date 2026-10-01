@@ -14,6 +14,7 @@ sealed interface ShortsUiState {
         val preloadIndex: Int? = null,
         /** `true` only when the user tapped to pause; lifecycle pauses don't set it. */
         val isPaused: Boolean = false,
+        /** Favourited video IDs, persisted in DataStore. */
         val likedIds: Set<String> = emptySet(),
     ) : ShortsUiState
 

@@ -12,3 +12,6 @@ data class PlayerKey(val videoId: String) : NavKey
 
 @Serializable
 data object ShortsKey : NavKey
+
+@Serializable
+data object DownloadsKey : NavKey

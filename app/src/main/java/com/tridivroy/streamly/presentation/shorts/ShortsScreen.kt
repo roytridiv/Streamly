@@ -268,6 +268,8 @@ private fun ShortVideoSurface(
                 // Let the thumbnail show through until the first frame renders.
                 setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                 keepScreenOn = true
+                // In-stream captions would collide with the metadata overlay.
+                subtitleView?.visibility = android.view.View.GONE
             }
         },
         update = { view -> view.player = player },

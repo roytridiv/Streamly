@@ -1,0 +1,232 @@
+package com.tridivroy.streamly.core.media
+
+import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadHelper
+import androidx.media3.exoplayer.offline.DownloadManager
+import androidx.media3.exoplayer.offline.DownloadService
+import com.tridivroy.streamly.domain.model.DownloadStatus
+import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.domain.model.VideoDownload
+import com.tridivroy.streamly.domain.repository.DownloadRepository
+import com.tridivroy.streamly.domain.repository.PreferencesRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.io.IOException
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+/**
+ * Bridges Media3's [DownloadManager] to the domain [DownloadRepository].
+ *
+ * - Starting/removing goes through [MediaDownloadService] so downloads continue in the background.
+ * - Video metadata is stored in the download request itself, so the Downloads list and the Player
+ *   work offline without the API.
+ * - [DownloadManager] has no progress callback, so progress is polled while anything downloads.
+ *
+ * Must first be created on the main thread (DownloadManager callbacks arrive there).
+ */
+@OptIn(UnstableApi::class)
+@Singleton
+class DownloadTracker @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val downloadManager: DownloadManager,
+    private val httpDataSourceFactory: HttpDataSource.Factory,
+    private val preferencesRepository: PreferencesRepository,
+    private val json: Json,
+) : DownloadRepository {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** Immutable snapshots keyed by video ID; Media3's [Download] progress mutates in place. */
+    private val snapshots = MutableStateFlow<Map<String, Snapshot>>(emptyMap())
+    private var progressJob: Job? = null
+
+    override val downloads: Flow<List<VideoDownload>> = snapshots.map { byId ->
+        byId.values.sortedByDescending { it.startTimeMs }.map { it.download }
+    }
+
+    init {
+        downloadManager.addListener(object : DownloadManager.Listener {
+            override fun onDownloadChanged(manager: DownloadManager, download: Download, finalException: Exception?) {
+                put(download)
+                updateProgressPolling()
+            }
+
+            override fun onDownloadRemoved(manager: DownloadManager, download: Download) {
+                snapshots.update { it - download.request.id }
+                updateProgressPolling()
+            }
+        })
+
+        scope.launch {
+            val stored = withContext(Dispatchers.IO) { readIndex() }
+            // Listener updates that raced with the read are newer, so they win.
+            snapshots.update { live -> stored + live }
+            updateProgressPolling()
+        }
+    }
+
+    override suspend fun download(video: Video): Result<Unit> = try {
+        val quality = preferencesRepository.userPreferences.first().playbackQuality
+        val trackSelection = DownloadHelper.getDefaultTrackSelectorParameters(context).buildUpon()
+            .apply { quality.maxVideoHeight?.let { setMaxVideoSize(Int.MAX_VALUE, it) } }
+            // Keep a single rendition (best that fits the cap) instead of every HLS variant.
+            .setForceHighestSupportedBitrate(true)
+            .build()
+
+        // DownloadHelper is main-thread bound: it calls back on the looper that prepared it.
+        val request = withContext(Dispatchers.Main) {
+            val helper = DownloadHelper.forMediaItem(
+                video.toMediaItem(),
+                trackSelection,
+                DefaultRenderersFactory(context),
+                httpDataSourceFactory,
+            )
+            try {
+                helper.awaitPrepared()
+                helper.getDownloadRequest(video.id, json.encodeToString(DownloadMetadata.serializer(), video.toMetadata()).encodeToByteArray())
+            } finally {
+                helper.release()
+            }
+        }
+        DownloadService.sendAddDownload(context, MediaDownloadService::class.java, request, /* foreground = */ true)
+        Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override fun remove(videoId: String) {
+        DownloadService.sendRemoveDownload(context, MediaDownloadService::class.java, videoId, /* foreground = */ false)
+    }
+
+    override suspend fun getDownloadedVideo(videoId: String): Video? =
+        completedDownload(videoId)?.let { decodeMetadata(it)?.toVideo() }
+
+    /**
+     * Playable item for a finished download, carrying its stream keys so the player only requests
+     * the downloaded rendition — required for HLS to play offline. `null` if not downloaded.
+     */
+    suspend fun downloadedMediaItem(videoId: String): MediaItem? =
+        completedDownload(videoId)?.request?.toMediaItem()
+
+    private suspend fun completedDownload(videoId: String): Download? = withContext(Dispatchers.IO) {
+        try {
+            downloadManager.downloadIndex.getDownload(videoId)?.takeIf { it.state == Download.STATE_COMPLETED }
+        } catch (e: IOException) {
+            null
+        }
+    }
+
+    private fun readIndex(): Map<String, Snapshot> = try {
+        downloadManager.downloadIndex.getDownloads().use { cursor ->
+            buildMap {
+                while (cursor.moveToNext()) {
+                    val download = cursor.download
+                    download.toSnapshot()?.let { put(download.request.id, it) }
+                }
+            }
+        }
+    } catch (e: IOException) {
+        emptyMap()
+    }
+
+    private fun put(download: Download) {
+        val snapshot = download.toSnapshot()
+        snapshots.update { if (snapshot == null) it - download.request.id else it + (download.request.id to snapshot) }
+    }
+
+    private fun updateProgressPolling() {
+        val anyDownloading = snapshots.value.values.any { it.download.status == DownloadStatus.Downloading }
+        if (!anyDownloading) {
+            progressJob?.cancel()
+            progressJob = null
+        } else if (progressJob?.isActive != true) {
+            progressJob = scope.launch {
+                while (isActive) {
+                    delay(PROGRESS_POLL_MS)
+                    downloadManager.currentDownloads.forEach(::put)
+                }
+            }
+        }
+    }
+
+    private fun Download.toSnapshot(): Snapshot? {
+        val status = when (state) {
+            Download.STATE_QUEUED, Download.STATE_STOPPED, Download.STATE_RESTARTING -> DownloadStatus.Queued
+            Download.STATE_DOWNLOADING -> DownloadStatus.Downloading
+            Download.STATE_COMPLETED -> DownloadStatus.Downloaded
+            Download.STATE_FAILED -> DownloadStatus.Failed
+            else -> return null // STATE_REMOVING: about to disappear.
+        }
+        val video = decodeMetadata(this)?.toVideo() ?: return null
+        return Snapshot(
+            download = VideoDownload(
+                video = video,
+                status = status,
+                // C.PERCENTAGE_UNSET (-1) until the total size is known.
+                progressPercent = percentDownloaded.takeIf { it >= 0f },
+                bytesDownloaded = bytesDownloaded,
+            ),
+            startTimeMs = startTimeMs,
+        )
+    }
+
+    private fun decodeMetadata(download: Download): DownloadMetadata? =
+        runCatching { json.decodeFromString(DownloadMetadata.serializer(), download.request.data.decodeToString()) }.getOrNull()
+
+    private data class Snapshot(val download: VideoDownload, val startTimeMs: Long)
+
+    private companion object {
+        const val PROGRESS_POLL_MS = 1_000L
+    }
+}
+
+private suspend fun DownloadHelper.awaitPrepared() = suspendCancellableCoroutine { continuation ->
+    prepare(object : DownloadHelper.Callback {
+        override fun onPrepared(helper: DownloadHelper) = continuation.resume(Unit)
+        override fun onPrepareError(helper: DownloadHelper, e: IOException) = continuation.resumeWithException(e)
+    })
+}
+
+/** Video fields persisted inside the download request (the domain model stays serialization-free). */
+@Serializable
+private data class DownloadMetadata(
+    val id: String,
+    val title: String,
+    val description: String,
+    val videoUrl: String,
+    val thumbnailUrl: String,
+    val category: String,
+    val duration: Long,
+    val isShort: Boolean,
+) {
+    fun toVideo() = Video(id, title, description, videoUrl, thumbnailUrl, category, duration, isShort)
+}
+
+private fun Video.toMetadata() = DownloadMetadata(id, title, description, videoUrl, thumbnailUrl, category, duration, isShort)

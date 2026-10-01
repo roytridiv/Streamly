@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import com.tridivroy.streamly.core.media.ShortsPlayerPool
+import com.tridivroy.streamly.domain.repository.PreferencesRepository
 import com.tridivroy.streamly.domain.repository.VideoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -26,6 +29,7 @@ import javax.inject.Inject
 class ShortsViewModel @Inject constructor(
     private val videoRepository: VideoRepository,
     private val playerPool: ShortsPlayerPool,
+    private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ShortsUiState>(ShortsUiState.Loading)
@@ -36,7 +40,11 @@ class ShortsViewModel @Inject constructor(
 
     private var loadJob: Job? = null
 
+    /** Persisted favourites (DataStore); kept so a (re)load shows likes immediately. */
+    private var favoriteIds: Set<String> = emptySet()
+
     init {
+        observeFavorites()
         loadShorts()
     }
 
@@ -52,9 +60,9 @@ class ShortsViewModel @Inject constructor(
                 state.copy(isPaused = !state.isPaused)
             }
 
-            is ShortsUiEvent.OnLikeClick -> updateSuccess { state ->
-                val liked = state.likedIds
-                state.copy(likedIds = if (event.videoId in liked) liked - event.videoId else liked + event.videoId)
+            // The state updates via observeFavorites() once DataStore has persisted the change.
+            is ShortsUiEvent.OnLikeClick -> viewModelScope.launch {
+                preferencesRepository.toggleFavorite(event.videoId)
             }
 
             is ShortsUiEvent.OnShareClick -> viewModelScope.launch {
@@ -85,11 +93,24 @@ class ShortsViewModel @Inject constructor(
                             videos = playable,
                             activeIndex = 0,
                             preloadIndex = playerPool.activate(0, playable),
+                            likedIds = favoriteIds,
                         )
                     }
                 },
                 onFailure = { ShortsUiState.Error(it.message) },
             )
+        }
+    }
+
+    private fun observeFavorites() {
+        viewModelScope.launch {
+            preferencesRepository.userPreferences
+                .map { it.favoriteVideoIds }
+                .distinctUntilChanged()
+                .collect { ids ->
+                    favoriteIds = ids
+                    updateSuccess { it.copy(likedIds = ids) }
+                }
         }
     }
 
