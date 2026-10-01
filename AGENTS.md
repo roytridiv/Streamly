@@ -20,3 +20,32 @@
 ## Code Quality & Conventions
 - Always implement explicit UI states: `Loading`, `Success`, `Empty`, and `Error` (with retry intents).
 - Write idiomatic Compose code with proper recomposition performance considerations.
+
+## Agent Execution Log & Prompt History
+Chronological log of the key agent prompt workflows. Append new entries at the bottom; keep each entry short and point to the files it touched.
+
+| # | Workflow | Status | Commit |
+|---|----------|--------|--------|
+| 1 | Setup & Dependencies | Done | `d15dda8`, `bd8fd44` |
+| 2 | Domain & Data Layer | Done | `4636bc9` |
+| 3 | Media3 ExoPlayer & Home Screen MVI UI | Done (uncommitted) | — |
+| 4 | Player Screen & Navigation 3 Routing | Pending | — |
+
+### 1. Setup & Dependencies
+- Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
+- Output: `gradle/libs.versions.toml`, root + `app/build.gradle.kts`, `StreamlyApp` (`@HiltAndroidApp`), manifest registration, theme moved `ui/theme` → `core/theme`.
+
+### 2. Domain & Data Layer
+- Prompt: Implement video domain models, repository contract, and Ktor-backed data source.
+- Domain (pure Kotlin): `domain/model/Video.kt`, `domain/repository/VideoRepository.kt`.
+- Data: `data/remote/dto/VideoDto.kt`, `data/mapper/VideoMapper.kt`, `data/repository/VideoRepositoryImpl.kt`.
+- DI: `core/network/NetworkModule.kt` (Ktor client), `core/di/RepositoryModule.kt`.
+
+### 3. Media3 ExoPlayer & Home Screen MVI Compose UI
+- Prompt: Provide a single shared ExoPlayer via Hilt and build the Home feed screen with MVI.
+- Player: `core/di/MediaModule.kt` (singleton `ExoPlayer`, HLS-ready).
+- Home MVI: `presentation/home/HomeUiState.kt` (Loading/Success/Empty/Error), `HomeUiEvent.kt` (intents + `NavigateToPlayer` effect), `HomeViewModel.kt` (`StateFlow<HomeUiState>`), `HomeScreen.kt` (`HomeRoute`).
+
+### 4. Player Screen & Navigation 3 Routing
+- Prompt: Add the Player screen bound to the shared ExoPlayer and replace the temporary root in `MainActivity` with a Nav3 back stack (Home → Player).
+- Status: Pending — `MainActivity` still hosts `HomeRoute(onNavigateToPlayer = {})` with a Nav3 TODO.

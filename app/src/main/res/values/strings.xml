@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Streamly</string>
+
+    <!-- Home -->
+    <string name="home_category_all">All</string>
+    <string name="home_refresh">Refresh</string>
+    <string name="home_retry">Retry</string>
+    <string name="home_error_generic">Something went wrong. Check your connection and try again.</string>
+    <string name="home_empty">No videos yet.</string>
 </resources>
