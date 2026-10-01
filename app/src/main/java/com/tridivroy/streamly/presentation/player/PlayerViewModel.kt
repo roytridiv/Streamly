@@ -2,12 +2,10 @@ package com.tridivroy.streamly.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.tridivroy.streamly.core.media.toMediaItem
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.repository.VideoRepository
 import dagger.assisted.Assisted
@@ -83,15 +81,7 @@ class PlayerViewModel @AssistedInject constructor(
     }
 
     private fun startPlayback(video: Video) {
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(video.id)
-            .setUri(video.videoUrl)
-            // Extension sniffing misses HLS URLs with query strings or no extension, so tag them explicitly.
-            .apply { if (".m3u8" in video.videoUrl) setMimeType(MimeTypes.APPLICATION_M3U8) }
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(video.title).build())
-            .build()
-
-        exoPlayer.setMediaItem(mediaItem)
+        exoPlayer.setMediaItem(video.toMediaItem())
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }

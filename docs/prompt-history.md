@@ -201,3 +201,19 @@ Let's go with the combined approach:
 
 Please implement both right now, and then proceed with the Player Screen & Nav3 implementation as planned.
 ````
+
+## 2026-10-01 20:23:35 +06 · session `d11e0c80`
+
+````text
+
+
+<pasted_content id="3f88">
+Proceed to Step 5: Implement TikTok/Reels style vertical Shorts Feed:
+
+1. In presentation/shorts/ShortsUiState.kt & ShortsViewModel.kt: Fetch vertical videos using VideoRepository.getShortsVideos() and manage active playback index.
+2. In presentation/shorts/ShortsScreen.kt: Build a vertical full-screen pager (VerticalPager) with 100% Jetpack Compose, showing overlay video metadata, like/share icons, and progress indicator.
+3. Handle ExoPlayer instances smoothly so scrolling between shorts is lag-free (auto-pause out-of-screen items and play active item).
+4. Integrate Navigation 3 (Nav3) bottom bar or tab switching between Home and Shorts destinations in presentation/navigation/NavGraph.kt.
+5. Update AGENTS.md log with prompt details and affected files.
+</pasted_content id="3f88">
+````

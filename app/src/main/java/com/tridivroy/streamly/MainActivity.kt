@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import com.tridivroy.streamly.core.theme.StreamlyTheme
-import com.tridivroy.streamly.presentation.navigation.StreamlyNavDisplay
+import com.tridivroy.streamly.presentation.navigation.StreamlyNavGraph
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             StreamlyTheme {
-                StreamlyNavDisplay(windowSizeClass = calculateWindowSizeClass(this))
+                StreamlyNavGraph(windowSizeClass = calculateWindowSizeClass(this))
             }
         }
     }

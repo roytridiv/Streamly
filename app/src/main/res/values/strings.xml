@@ -13,4 +13,18 @@
     <string name="player_retry">Retry</string>
     <string name="player_empty">This video isn\u2019t available to play.</string>
     <string name="player_error_generic">Couldn\u2019t play this video. Check your connection and try again.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_shorts">Shorts</string>
+
+    <!-- Shorts -->
+    <string name="shorts_like">Like</string>
+    <string name="shorts_unlike">Unlike</string>
+    <string name="shorts_share">Share</string>
+    <string name="shorts_share_chooser">Share video</string>
+    <string name="shorts_play">Play</string>
+    <string name="shorts_retry">Retry</string>
+    <string name="shorts_empty">No shorts yet.</string>
+    <string name="shorts_error_generic">Couldn\u2019t load shorts. Check your connection and try again.</string>
 </resources>

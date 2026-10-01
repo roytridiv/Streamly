@@ -30,7 +30,8 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 | 1 | Setup & Dependencies | Done | `d15dda8`, `bd8fd44` |
 | 2 | Domain & Data Layer | Done | `4636bc9` |
 | 3 | Media3 ExoPlayer & Home Screen MVI UI | Done | `6dd6fe4` |
-| 4 | Player Screen & Navigation 3 Routing | Done (uncommitted) | — |
+| 4 | Player Screen & Navigation 3 Routing | Done | `4dd76bb` |
+| 5 | Shorts Feed & Home/Shorts Tabs | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -49,6 +50,13 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 
 ### 4. Player Screen & Navigation 3 Routing
 - Prompt: Add the Player screen bound to the shared ExoPlayer and replace the temporary root in `MainActivity` with a Nav3 back stack (Home → Player).
-- Navigation: `presentation/navigation/StreamlyNavKeys.kt` (`HomeKey`, `PlayerKey(videoId)`), `StreamlyNavDisplay.kt` (`NavDisplay` + saveable-state and per-entry ViewModel-store decorators); `MainActivity.kt` now hosts `StreamlyNavDisplay` with `WindowSizeClass`.
+- Navigation: `presentation/navigation/StreamlyNavKeys.kt` (`HomeKey`, `PlayerKey(videoId)`), `StreamlyNavDisplay.kt` → renamed `NavGraph.kt` in step 5 (`NavDisplay` + saveable-state and per-entry ViewModel-store decorators); `MainActivity.kt` now hosts the nav graph with `WindowSizeClass`.
 - Player MVI: `presentation/player/PlayerUiState.kt` (Loading/Success/Empty/Error), `PlayerUiEvent.kt` (`Retry`), `PlayerViewModel.kt` (Hilt assisted `videoId`, drives shared `ExoPlayer`, stops but never releases it), `PlayerScreen.kt` (`PlayerView` via `AndroidView`; fullscreen on compact height, side-by-side on expanded width).
 - Build: `lifecycle-viewmodel-navigation3` added (`gradle/libs.versions.toml`, `app/build.gradle.kts`); player strings in `res/values/strings.xml`.
+
+### 5. Shorts Feed & Home/Shorts Tabs
+- Prompt: Build a TikTok/Reels-style vertical Shorts feed (`getShortsVideos()`, VerticalPager, metadata overlay, like/share, progress), with lag-free playback (pause off-screen, play active), plus Nav3 tab switching between Home and Shorts.
+- Player pool: `core/media/ShortsPlayerPool.kt` — 2 ExoPlayers max, page `i` → slot `i % 2`; active plays, neighbour preloaded paused on first frame; released when the Shorts entry is popped. `core/media/VideoMediaItem.kt` (`Video.toMediaItem()`, HLS MIME tagging) now shared with `PlayerViewModel`.
+- Shorts MVI: `presentation/shorts/ShortsUiState.kt` (Loading/Success/Empty/Error; `activeIndex`, `preloadIndex`, `isPaused`, `likedIds`), `ShortsUiEvent.kt` (page settled, toggle play, like, share, screen start/stop, retry + `Share` effect), `ShortsViewModel.kt`, `ShortsScreen.kt` (`VerticalPager`, switches playback on `settledPage`, tap-to-pause, buffering spinner + polled progress bar, share via `ACTION_SEND` chooser).
+- Navigation: `presentation/navigation/NavGraph.kt` (`StreamlyNavGraph`; bottom bar on compact width, `NavigationRail` on medium/expanded, hidden on Player; back stack `[Home]` / `[Home, Shorts]`), `ShortsKey` in `StreamlyNavKeys.kt`; nav/shorts strings in `res/values/strings.xml`.
+- Verified on device (SM-M015G, Android 10): 2 player inits, swipe plays preloaded clip, tap-pause works, both players released on switching back to Home.

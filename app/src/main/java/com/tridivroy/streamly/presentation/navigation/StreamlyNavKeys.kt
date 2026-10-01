@@ -9,3 +9,6 @@ data object HomeKey : NavKey
 
 @Serializable
 data class PlayerKey(val videoId: String) : NavKey
+
+@Serializable
+data object ShortsKey : NavKey
