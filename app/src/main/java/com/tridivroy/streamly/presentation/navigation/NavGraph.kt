@@ -217,6 +217,7 @@ fun StreamlyNavGraph(
                             nowPlaying = playing,
                             onClick = { backStack.add(PlayerKey(playing.video.id)) },
                             onTogglePlay = mainViewModel::onMiniPlayerToggle,
+                            onDismiss = mainViewModel::onMiniPlayerDismiss,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()

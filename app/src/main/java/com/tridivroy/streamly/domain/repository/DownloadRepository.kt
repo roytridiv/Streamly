@@ -14,6 +14,9 @@ interface DownloadRepository {
     /** Cancels an in-progress download or deletes a finished one. */
     fun remove(videoId: String)
 
+    /** Pauses or resumes one in-flight download. Finished downloads are unaffected. */
+    fun setPaused(videoId: String, paused: Boolean)
+
     /** Metadata of a fully downloaded video, available without network; `null` if not downloaded. */
     suspend fun getDownloadedVideo(videoId: String): Video?
 }

@@ -405,3 +405,42 @@ Run physical device smoke test, verify full app UX flow via ADB, and auto-fix an
 ````text
 is the project overview md file updated ?
 ````
+
+## 2026-10-02 23:38:51 BST · session `196cf442`
+
+````text
+Fix UI and UX issues identified during manual physical testing:
+
+1. Now Playing Screen - Top Padding & Back Icon:
+   - Add appropriate top padding/status bar spacing above the video player container in NowPlayingScreen.
+   - Fix the back navigation icon in NowPlayingScreen and ProfileScreen so it points strictly to the Left (Icon: AutoMirrored.Filled.ArrowBack or similar standard left arrow), instead of pointing downwards.
+   - Add a visible close/dismiss cross icon ('X') to the Download button/dialog underneath the video player.
+
+2. Shorts Screen - Comment Button Affordance:
+   - Fix the Comment button click handler on ShortsScreen so tapping it does NOT pause or trigger video playback state changes. Ensure it behaves strictly as a non-functional stub or simple ripple without side-effects.
+
+3. Home & Downloads Screen - Mini-Player Controls:
+   - Enhance the persistent Mini-Player overlay appearing on Home and Downloads screens:
+     * Add a Play/Pause toggle button to control playback directly from the mini-player.
+     * Add a Close/Dismiss ('X') button that stops playback and completely removes the mini-player bar.
+
+4. Downloads & Notification Controls:
+   - Downloads Screen: Add an interactive Pause/Resume toggle button for ongoing downloads.
+   - Download Foreground Service Notification: Add media control actions (Pause/Cancel) directly inside the system notification so users can control or cancel active background downloads.
+
+5. Verification:
+   - Ensure clean build via `./gradlew assembleDebug`.
+   - Verify layout rendering and button interactions on physical target.
+````
+
+## 2026-10-03 02:22:42 BST · session `196cf442`
+
+````text
+Fix blurry logo animation rendering in StreamlySplash / Splash animation:
+
+ Root Cause Analysis & Fixes:
+   - Ensure the logo in StreamlySplash.kt (and any associated splash components) is rendered strictly using crisp Vector graphics (path drawing via Compose Canvas or VectorPainter) rather than rasterized Bitmaps.
+   - If using Canvas or Image component with ImageBitmap/Painter, set `FilterQuality = FilterQuality.High` to prevent interpolation blur during scale transforms.
+   - Ensure hardware acceleration is enabled and remove any unnecessary software layer rasterization (`graphicsLayer` scaling should maintain crisp vector resolution).
+   - If drawing directly with `DrawScope.drawPath`, ensure crisp stroke joins, anti-aliasing (`isAntiAlias = true`), and correct viewport scaling without off-screen bitmap caching.
+````

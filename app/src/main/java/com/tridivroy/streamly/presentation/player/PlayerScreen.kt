@@ -9,6 +9,8 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -280,6 +282,7 @@ private fun PlayerContent(
             .statusBarsPadding(),
     ) {
         PlayerHeader(onBack = onBack)
+        Spacer(Modifier.height(4.dp))
 
         when (uiState) {
             PlayerUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -425,7 +428,8 @@ private fun SuccessContent(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            viewport(Modifier.padding(horizontal = 14.dp))
+            // Breathing room between the header and the viewport, which otherwise sat tight under it.
+            viewport(Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
             details(Modifier)
         }
     }
@@ -445,7 +449,9 @@ private fun PlayerHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         HeaderIconButton(
-            icon = StreamlyIcons.ChevronDown,
+            // A left arrow, not the handoff's collapse chevron: on device the chevron read as
+            // "expand/collapse" rather than "go back".
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = stringResource(R.string.player_back),
             onClick = onBack,
         )

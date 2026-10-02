@@ -221,8 +221,13 @@ class PlayerViewModel @AssistedInject constructor(
                 }
             }
 
-            DownloadStatus.Queued, DownloadStatus.Downloading, DownloadStatus.Downloaded ->
-                downloadRepository.remove(videoId)
+            // Paused included: in the Player the button cancels the download outright. Pausing and
+            // resuming an individual download belongs on the Downloads screen, which has the room.
+            DownloadStatus.Queued,
+            DownloadStatus.Downloading,
+            DownloadStatus.Paused,
+            DownloadStatus.Downloaded,
+            -> downloadRepository.remove(videoId)
         }
     }
 

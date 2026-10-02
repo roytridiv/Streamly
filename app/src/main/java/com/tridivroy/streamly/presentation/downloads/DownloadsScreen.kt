@@ -167,6 +167,7 @@ private fun SuccessContent(
                     }
                 },
                 onRemove = { onEvent(DownloadsUiEvent.OnRemoveClick(download.video.id)) },
+                onPauseToggle = { onEvent(DownloadsUiEvent.OnPauseToggleClick(download)) },
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
         }

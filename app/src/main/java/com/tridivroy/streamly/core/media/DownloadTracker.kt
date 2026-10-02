@@ -134,6 +134,16 @@ class DownloadTracker @Inject constructor(
         DownloadService.sendRemoveDownload(context, MediaDownloadService::class.java, videoId, /* foreground = */ false)
     }
 
+    override fun setPaused(videoId: String, paused: Boolean) {
+        DownloadService.sendSetStopReason(
+            context,
+            MediaDownloadService::class.java,
+            videoId,
+            if (paused) STOP_REASON_PAUSED else Download.STOP_REASON_NONE,
+            /* foreground = */ false,
+        )
+    }
+
     override suspend fun getDownloadedVideo(videoId: String): Video? =
         completedDownload(videoId)?.let { decodeMetadata(it)?.toVideo() }
 
@@ -187,7 +197,11 @@ class DownloadTracker @Inject constructor(
 
     private fun Download.toSnapshot(): Snapshot? {
         val status = when (state) {
-            Download.STATE_QUEUED, Download.STATE_STOPPED, Download.STATE_RESTARTING -> DownloadStatus.Queued
+            // STATE_STOPPED means something set a stopReason. Ours (STOP_REASON_PAUSED) is the user's
+            // doing and is resumable; any other stop reason is the download manager waiting, which the
+            // UI should not offer a resume button for.
+            Download.STATE_STOPPED -> if (stopReason == STOP_REASON_PAUSED) DownloadStatus.Paused else DownloadStatus.Queued
+            Download.STATE_QUEUED, Download.STATE_RESTARTING -> DownloadStatus.Queued
             Download.STATE_DOWNLOADING -> DownloadStatus.Downloading
             Download.STATE_COMPLETED -> DownloadStatus.Downloaded
             Download.STATE_FAILED -> DownloadStatus.Failed
@@ -212,8 +226,14 @@ class DownloadTracker @Inject constructor(
 
     private data class Snapshot(val download: VideoDownload, val startTimeMs: Long)
 
-    private companion object {
+    internal companion object {
         const val PROGRESS_POLL_MS = 1_000L
+
+        /**
+         * Our own stop reason, so a user pause can be told apart from the download manager stopping a
+         * download itself. Any non-zero value works; Media3 only compares it to `STOP_REASON_NONE`.
+         */
+        const val STOP_REASON_PAUSED = 1
     }
 }
 

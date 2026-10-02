@@ -44,6 +44,11 @@ class DownloadsViewModel @Inject constructor(
 
             is DownloadsUiEvent.OnRemoveClick -> downloadRepository.remove(event.videoId)
 
+            is DownloadsUiEvent.OnPauseToggleClick -> downloadRepository.setPaused(
+                videoId = event.download.video.id,
+                paused = event.download.status != DownloadStatus.Paused,
+            )
+
             // On failure the item simply stays in the Failed state.
             is DownloadsUiEvent.OnRetryDownloadClick -> viewModelScope.launch { downloadRepository.download(event.video) }
 

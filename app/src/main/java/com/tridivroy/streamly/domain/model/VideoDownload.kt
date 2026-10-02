@@ -11,9 +11,11 @@ data class VideoDownload(
 )
 
 enum class DownloadStatus {
-    /** Waiting to start, or paused until requirements (e.g. network) are met. */
+    /** Waiting to start, or held back until requirements (e.g. network) are met. */
     Queued,
     Downloading,
+    /** Stopped by the user, resumable. Distinct from [Queued], which the user cannot resume. */
+    Paused,
     Downloaded,
     Failed,
 }

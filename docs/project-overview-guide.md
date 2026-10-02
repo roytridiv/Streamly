@@ -2,7 +2,7 @@
 
 Streamly is a 100% Jetpack Compose video app: an Onboarding/Auth gate, a Home feed, a tabbed Player, a TikTok/Reels-style Shorts feed, offline HLS downloads, and a Profile screen — all in the Nordic Mint design. This guide explains how it is put together, why the key decisions were made, and where to find things.
 
-> **Status** — Workflows 1–12 in [`AGENTS.md`](../AGENTS.md) are implemented; 7–12 are committed-pending. Since workflow 8 the UI follows the Nordic Mint design handoff, and the app opens on an Onboarding/Auth screen. Smoke-tested on a physical device (moto e5 plus, Android 8.0 / API 26) in workflow 12. The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
+> **Status** — Workflows 1–13 in [`AGENTS.md`](../AGENTS.md) are implemented; 7–13 are committed-pending. Since workflow 8 the UI follows the Nordic Mint design handoff, and the app opens on an Onboarding/Auth screen. Smoke-tested on a physical device (moto e5 plus, Android 8.0 / API 26) in workflows 12 and 13. The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
 
 ---
 
@@ -137,7 +137,7 @@ PlayerScreen "Download"  ─► PlayerViewModel ─► DownloadRepository.downlo
 - **The start destination depends on the session.** `MainViewModel.hasSession` is `Boolean?`; while it is `null` the graph renders a bare background and waits rather than guessing, because rooting at Home and then yanking a returning user to onboarding (or the reverse) is visible. The root is then `HomeKey` or `OnboardingKey`, evaluated once. Signing in and signing out move the stack explicitly with `resetTo(key)`, which pushes before trimming so the stack is never momentarily empty.
 - **Tabs** sit on top of the Home root: `[Home]`, `[Home, Shorts]`, `[Home, Downloads]`. Selecting a tab pops back to Home and then pushes the tab, so system back always returns to Home. Leaving Shorts pops its entry, which frees its player pool.
 - **Adaptive chrome.** A custom `StreamlyBottomBar` on compact widths and a `StreamlyNavRail` on medium and expanded widths. The bar is shown on the three tabs **and on the Player**, so a tab is always one tap away while something plays; it is hidden for fullscreen playback, Onboarding and Profile. Which tab is highlighted is found by scanning *down* the stack, since the Player sits on top of whichever tab opened it. The box holding `NavDisplay` consumes the navigation-bar insets whenever the bar is shown, so screens above it do not pad for them twice.
-- **Mini-player.** While the shared player holds a video, a 58dp mini-player docks above the bar on Home and Downloads (keyed on the top of the stack, so it never covers the Player itself). `PlayerViewModel.onCleared()` deliberately leaves playback running so this handover works; `NowPlayingStore.pause()` is called when the Shorts pool takes over, to keep the "1–2 active players" rule.
+- **Mini-player.** While the shared player holds a video, a 58dp mini-player docks above the bar on Home and Downloads (keyed on the top of the stack, so it never covers the Player itself). It carries a play/pause toggle and a close button; closing calls `NowPlayingStore.dismiss()`, which stops playback and clears the media items -- clearing them is what removes the bar. `PlayerViewModel.onCleared()` deliberately leaves playback running so this handover works; `NowPlayingStore.pause()` is called when the Shorts pool takes over, to keep the "1–2 active players" rule.
 - **ViewModel scoping** uses two entry decorators on `NavDisplay`:
   - `rememberSaveableStateHolderNavEntryDecorator()`: per-entry `rememberSaveable` state.
   - `rememberViewModelStoreNavEntryDecorator()` (from `lifecycle-viewmodel-navigation3`): each entry gets its own `ViewModelStore`. `hiltViewModel()` is then scoped to that entry, cleared when it is popped, and kept across rotation.
@@ -208,7 +208,7 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 | App | `StreamlyApp.kt` | `@HiltAndroidApp` entry point |
 | App | `MainActivity.kt` / `MainViewModel.kt` | Edge-to-edge host, applies the persisted theme, computes `WindowSizeClass`, hosts the nav graph |
 | Domain | `domain/model/Video.kt` | Core video model |
-| Domain | `domain/model/VideoDownload.kt` | Download snapshot + `DownloadStatus` |
+| Domain | `domain/model/VideoDownload.kt` | Download snapshot + `DownloadStatus` (Queued / Downloading / Paused / Downloaded / Failed) |
 | Domain | `domain/model/UserPreferences.kt` | Favourites, saved, subscriptions, watched, session, `PlaybackQuality`, `ThemeMode` |
 | Domain | `domain/model/UserSession.kt` | Signed-in account + `SignInMethod` (Google / Email / Guest) |
 | Domain | `domain/repository/VideoRepository.kt` | Home, Shorts and by-id video access |
@@ -224,7 +224,7 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 | Core | `core/di/RepositoryModule.kt` | Binds domain interfaces to implementations |
 | Core | `core/media/ShortsPlayerPool.kt` | Two-player pool with neighbour preloading |
 | Core | `core/media/DownloadTracker.kt` | `DownloadRepository` over Media3 `DownloadManager` |
-| Core | `core/media/MediaDownloadService.kt` | Foreground download service + notification + scheduler |
+| Core | `core/media/MediaDownloadService.kt` | Foreground download service; hand-built progress notification with Pause/Resume and Cancel actions |
 | Core | `core/media/VideoMediaItem.kt` | `Video.toMediaItem()` with explicit HLS MIME type |
 | Core | `core/media/NowPlayingStore.kt` | Mirrors the shared player for the mini-player; polls position only while playing |
 | Core | `core/storage/DeviceStorage.kt` | Real `StatFs` figures for the Downloads usage card |
@@ -272,6 +272,13 @@ Three things work together:
 2. Downloaded items are played with the `streamKeys` from their `DownloadRequest`, so the player only asks for the rendition that was downloaded.
 3. Video metadata is stored in the request's `data` bytes, so the Player can show details without the API.
 
+#### Q7a. How are downloads paused, and why a custom stop reason?
+`DownloadRepository.setPaused()` sends `sendSetStopReason` with `DownloadTracker.STOP_REASON_PAUSED`, our own non-zero value. The stop reason is what makes a user pause distinguishable from the download manager holding a download back -- both land in `STATE_STOPPED`, but only one should offer a Resume button, which is why `DownloadStatus` has a separate `Paused`.
+
+The notification's Pause action deliberately uses the same path rather than `ACTION_PAUSE_DOWNLOADS`: that action flips a manager-level flag and leaves each download reporting `STATE_QUEUED` with no stop reason, so on device the download kept running and the button never flipped to Resume. One mechanism for both surfaces means they cannot disagree.
+
+Note the service stops once nothing is downloading, so a paused download has no notification -- Pause and Cancel act on active downloads, and resuming is done from the Downloads screen.
+
 #### Q7. How is download progress tracked when `DownloadManager` has no progress callback?
 `DownloadTracker` listens for state changes (`onDownloadChanged` / `onDownloadRemoved`). While any download is in progress, it also polls `currentDownloads` every second. Media3's `Download` progress changes in place, so the tracker copies it into immutable `VideoDownload` snapshots. Otherwise `StateFlow` would compare equal and never emit.
 
@@ -305,6 +312,7 @@ It flips one piece of saveable state in `PlayerScreen`. The same `FloatingPlayer
 - Replace the placeholder `BASE_URL` and review the fallback streams for release builds.
 - There is no favourites list screen yet; favourites drive the Shorts/Player like state and the Profile stat.
 - No download-complete notification, and a failed retry from the Downloads list shows no extra message.
+- Resuming a paused download has to happen in-app: Media3 stops the foreground service when nothing is in flight, so the notification is gone by then.
 - The quality cap is not applied to the Shorts pool.
 - No unit or UI tests yet. Workflow 12 was a manual ADB smoke test, not an automated suite — the flows it covered are the obvious first instrumentation targets.
 - Auth is mocked: every button writes a placeholder session, and the Google button shows a neutral monogram rather than Google's logo. Wiring a real provider changes only the callers of `PreferencesRepository.signIn` and that one asset.

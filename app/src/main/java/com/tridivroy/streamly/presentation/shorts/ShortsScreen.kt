@@ -242,12 +242,14 @@ private fun ShortPage(
                     active = isLiked,
                     onClick = { onEvent(ShortsUiEvent.OnLikeClick(video.id)) },
                 ),
-                // Streamly has no comments screen, so this shows the count without claiming to open
-                // anything — a tile, not a button. Give it an onClick once there is somewhere to go.
+                // Streamly has no comments screen yet, but the tile still has to swallow its own taps:
+                // without a click handler the tap fell through to the page and toggled playback, so
+                // tapping Comments paused the video. A no-op click gives the ripple and nothing else.
                 ShortsAction(
                     icon = StreamlyIcons.Comment,
                     contentDescription = stringResource(R.string.shorts_comments),
                     count = video.stats.commentCount,
+                    onClick = {},
                 ),
                 ShortsAction(
                     icon = StreamlyIcons.Share,

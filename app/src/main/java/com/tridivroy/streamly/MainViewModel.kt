@@ -57,6 +57,9 @@ class MainViewModel @Inject constructor(
 
     fun onMiniPlayerToggle() = nowPlayingStore.togglePlay()
 
+    /** Stops playback and removes the mini-player entirely. */
+    fun onMiniPlayerDismiss() = nowPlayingStore.dismiss()
+
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
     }

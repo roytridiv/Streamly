@@ -7,6 +7,8 @@ import com.tridivroy.streamly.domain.model.VideoDownload
 sealed interface DownloadsUiEvent {
     data class OnDownloadClick(val download: VideoDownload) : DownloadsUiEvent
     data class OnRemoveClick(val videoId: String) : DownloadsUiEvent
+    /** Pauses an in-flight download, or resumes a paused one. */
+    data class OnPauseToggleClick(val download: VideoDownload) : DownloadsUiEvent
     data class OnRetryDownloadClick(val video: Video) : DownloadsUiEvent
     /** Re-reads the download list after an error. */
     data object Retry : DownloadsUiEvent
