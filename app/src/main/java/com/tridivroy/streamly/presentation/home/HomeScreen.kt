@@ -20,10 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -46,12 +43,12 @@ import com.tridivroy.streamly.presentation.home.components.CategoryChips
 import com.tridivroy.streamly.presentation.home.components.HomeTopBar
 import com.tridivroy.streamly.presentation.home.components.TopBarAction
 import com.tridivroy.streamly.presentation.home.components.VideoCard
-import com.tridivroy.streamly.presentation.settings.SettingsSheet
 
 /** Stateful entry point: wires [HomeViewModel] to the stateless [HomeScreen]. */
 @Composable
 fun HomeRoute(
     onNavigateToPlayer: (videoId: String) -> Unit,
+    onNavigateToProfile: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -68,20 +65,20 @@ fun HomeRoute(
         }
     }
 
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+    val currentOnNavigateToProfile by rememberUpdatedState(onNavigateToProfile)
 
-    HomeScreen(uiState = uiState, onEvent = viewModel::onEvent, onSettingsClick = { showSettings = true })
-
-    if (showSettings) {
-        SettingsSheet(onDismiss = { showSettings = false })
-    }
+    HomeScreen(
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        onProfileClick = { currentOnNavigateToProfile() },
+    )
 }
 
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
     onEvent: (HomeUiEvent) -> Unit,
-    onSettingsClick: () -> Unit,
+    onProfileClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -98,9 +95,9 @@ fun HomeScreen(
                     onClick = { onEvent(HomeUiEvent.Refresh) },
                 ),
                 TopBarAction(
-                    icon = StreamlyIcons.Settings,
-                    contentDescription = stringResource(R.string.settings_open),
-                    onClick = onSettingsClick,
+                    icon = StreamlyIcons.User,
+                    contentDescription = stringResource(R.string.profile_open),
+                    onClick = onProfileClick,
                 ),
             ),
         )
@@ -233,7 +230,7 @@ private fun HomeScreenSuccessPreview() {
                 downloadedIds = setOf("1"),
             ),
             onEvent = {},
-            onSettingsClick = {},
+            onProfileClick = {},
         )
     }
 }
@@ -242,6 +239,6 @@ private fun HomeScreenSuccessPreview() {
 @Composable
 private fun HomeScreenErrorPreview() {
     StreamlyTheme(darkTheme = true) {
-        HomeScreen(uiState = HomeUiState.Error(message = null), onEvent = {}, onSettingsClick = {})
+        HomeScreen(uiState = HomeUiState.Error(message = null), onEvent = {}, onProfileClick = {})
     }
 }

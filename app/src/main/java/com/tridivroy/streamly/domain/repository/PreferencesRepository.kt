@@ -3,6 +3,7 @@ package com.tridivroy.streamly.domain.repository
 import com.tridivroy.streamly.domain.model.PlaybackQuality
 import com.tridivroy.streamly.domain.model.ThemeMode
 import com.tridivroy.streamly.domain.model.UserPreferences
+import com.tridivroy.streamly.domain.model.UserSession
 import kotlinx.coroutines.flow.Flow
 
 interface PreferencesRepository {
@@ -14,4 +15,10 @@ interface PreferencesRepository {
     suspend fun toggleSubscription(channelHandle: String)
     suspend fun setPlaybackQuality(quality: PlaybackQuality)
     suspend fun setThemeMode(mode: ThemeMode)
+
+    /** Records that playback started for [videoId]; repeats do not double-count. */
+    suspend fun markWatched(videoId: String)
+
+    suspend fun signIn(session: UserSession)
+    suspend fun signOut()
 }

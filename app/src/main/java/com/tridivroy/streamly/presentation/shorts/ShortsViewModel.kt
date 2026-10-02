@@ -3,6 +3,7 @@ package com.tridivroy.streamly.presentation.shorts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
+import com.tridivroy.streamly.core.media.NowPlayingStore
 import com.tridivroy.streamly.core.media.ShortsPlayerPool
 import com.tridivroy.streamly.domain.repository.PreferencesRepository
 import com.tridivroy.streamly.domain.repository.VideoRepository
@@ -29,6 +30,7 @@ import javax.inject.Inject
 class ShortsViewModel @Inject constructor(
     private val videoRepository: VideoRepository,
     private val playerPool: ShortsPlayerPool,
+    private val nowPlayingStore: NowPlayingStore,
     private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
 
@@ -78,6 +80,9 @@ class ShortsViewModel @Inject constructor(
             }
 
             ShortsUiEvent.OnScreenStart -> (_uiState.value as? ShortsUiState.Success)?.let { state ->
+                // A video left playing on the shared player (the mini-player keeps it going after the
+                // Player screen is popped) would bleed under the short about to start.
+                nowPlayingStore.pause()
                 if (!state.isPaused) playerPool.play(state.activeIndex)
             }
 

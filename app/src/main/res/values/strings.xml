@@ -83,9 +83,35 @@
     <string name="player_download_queued">Queued \u00b7 Cancel</string>
     <string name="player_download_failed">Download failed \u00b7 Retry</string>
 
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_open">Open profile</string>
+    <string name="profile_back">Back</string>
+    <string name="profile_signin_title">Your library, everywhere</string>
+    <string name="profile_signin_subtitle">Sign in to keep downloads, favourites and subscriptions with you on every device.</string>
+    <string name="profile_signin_google">Continue with Google</string>
+    <string name="profile_signin_email">Continue with email</string>
+    <string name="profile_signin_disclaimer">Demo sign-in. No account is created and nothing leaves this device.</string>
+    <string name="profile_benefits_title">WHAT YOU GET</string>
+    <string name="profile_benefit_offline">Download in 1080p and watch with no signal</string>
+    <string name="profile_benefit_sync">Favourites and subscriptions synced across devices</string>
+    <string name="profile_benefit_noads">An uninterrupted feed, start to finish</string>
+    <string name="profile_premium">PREMIUM</string>
+    <string name="profile_stat_watched">Watched</string>
+    <string name="profile_stat_downloads">Offline</string>
+    <string name="profile_stat_favourites">Favourites</string>
+    <string name="profile_settings_title">SETTINGS</string>
+    <string name="profile_clear_cache">Clear image cache</string>
+    <string name="profile_cache_cleared">Cache cleared · %s freed</string>
+    <string name="profile_signin_guest">Continue as guest</string>
+    <string name="profile_sign_out">Sign out</string>
+    <string name="profile_sign_out_confirm_title">Sign out?</string>
+    <string name="profile_sign_out_confirm_body">Are you sure you want to sign out? Your downloads and settings stay on this device.</string>
+    <string name="profile_sign_out_cancel">Cancel</string>
+    <string name="profile_mock_notice">MOCK SESSION · STORED ON THIS DEVICE ONLY</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_open">Open settings</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>

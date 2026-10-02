@@ -333,3 +333,40 @@ Fix Requirements:
    - In DisposableEffect (onDispose) of PlayerScreen, force reset orientation to SCREEN_ORIENTATION_UNSPECIFIED so navigating away from the player never leaves the app stuck in landscape mode.
    - Cleanly handle system UI visibility (Status bar and Navigation bar) when toggling in and out of fullscreen.
 ````
+
+## 2026-10-02 20:29:38 BST · session `196cf442`
+
+````text
+Add a modern, polished Profile & Sign-In UI screen to Streamly adhering to Nordic Mint aesthetic:
+
+Requirements:
+   - Create a new ProfileScreen layout accessible via a Profile icon on the TopAppBar or BottomNav.
+   - Design a clean, modern UI with two dynamic states using DataStore:
+     a) Signed Out State: A high-converting sign-in card with Google/Email login buttons, Nordic Mint highlights (#2EC4B6), and benefits overview.
+     b) Signed In State: Display profile avatar, user name (@dev_streamly), Premium badge, watch statistics, and settings list (Theme toggle, Downloads, Clear cache, Sign Out).
+   - Instant mock login toggle so clicking "Sign In" populates user profile data smoothly.
+````
+
+## 2026-10-02 21:15:23 BST · session `196cf442`
+
+````text
+Fix application startup and navigation flow based on requirement specification:
+
+1. Onboarding Screen as Start Destination:
+   - Make Onboarding / Auth screen the default start destination in NavGraph when no active session exists in DataStore.
+   - Include options for "Continue with Google", Email sign-in, and a clear "Continue as Guest" button.
+   - Upon clicking any sign-in action or "Continue as Guest", set the session state in DataStore and navigate straight to the Home Feed (clearing the Onboarding screen from the backstack).
+
+2. Returning User Flow:
+   - Check DataStore on app launch: if a session (or guest session) exists, skip Onboarding and go straight to Home Feed.
+
+3. Profile Sign-Out Flow:
+   - In ProfileScreen, when clicking Sign Out, show a confirmation dialog ("Are you sure you want to sign out?").
+   - Upon confirming sign-out, clear the session in DataStore and navigate back to Onboarding screen, popping all other screens from the backstack.
+````
+
+## 2026-10-02 21:41:41 BST · session `196cf442`
+
+````text
+Update Navigation layout so that the BottomNavigationBar remains visible on the PlayerScreen as well, allowing direct switching between tabs while a video plays.
+````

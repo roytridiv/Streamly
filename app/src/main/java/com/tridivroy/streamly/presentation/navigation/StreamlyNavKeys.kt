@@ -15,3 +15,10 @@ data object ShortsKey : NavKey
 
 @Serializable
 data object DownloadsKey : NavKey
+
+@Serializable
+data object ProfileKey : NavKey
+
+/** Start destination while DataStore holds no session — account or guest. */
+@Serializable
+data object OnboardingKey : NavKey

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,6 +17,9 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,7 +43,9 @@ import com.tridivroy.streamly.presentation.navigation.components.MiniPlayer
 import com.tridivroy.streamly.presentation.navigation.components.NavBarItem
 import com.tridivroy.streamly.presentation.navigation.components.StreamlyBottomBar
 import com.tridivroy.streamly.presentation.navigation.components.StreamlyNavRail
+import com.tridivroy.streamly.presentation.onboarding.OnboardingRoute
 import com.tridivroy.streamly.presentation.player.PlayerRoute
+import com.tridivroy.streamly.presentation.profile.ProfileRoute
 import com.tridivroy.streamly.presentation.shorts.ShortsRoute
 
 /** Tabs shown in the bottom bar / navigation rail. */
@@ -58,11 +64,15 @@ private enum class TopLevelDestination(
  * (`[Home, Shorts]`, `[Home, Downloads]`), so system back returns to Home, and leaving the Shorts
  * tab pops its entry — releasing its player pool. Downloads can push the Player for offline
  * playback. The tab UI is a bottom bar on compact widths and a rail on medium/expanded (tablets,
- * unfolded foldables); both are hidden on the Player, which is full-bleed.
+ * unfolded foldables).
+ *
+ * The bar stays up on the Player too, so a tab is always one tap away while something is playing; it
+ * only disappears for fullscreen playback, Onboarding and Profile. The tab it highlights is the one
+ * the Player was opened from, found by scanning down the stack.
  *
  * The mini-player docks above the bar on Home and Downloads — not on Shorts, which is edge-to-edge,
- * and not on the Player itself. Its state and the Downloads badge come from [MainViewModel], since
- * both are app chrome rather than any one screen's content.
+ * and not on the Player, where the real player is already on screen. Its state and the Downloads badge
+ * come from [MainViewModel], since both are app chrome rather than any one screen's content.
  */
 @Composable
 fun StreamlyNavGraph(
@@ -70,9 +80,44 @@ fun StreamlyNavGraph(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel = hiltViewModel(),
 ) {
-    val backStack = rememberNavBackStack(HomeKey)
-    val currentTab = TopLevelDestination.entries.firstOrNull { it.key == backStack.lastOrNull() }
+    val hasSession by mainViewModel.hasSession.collectAsStateWithLifecycle()
+
+    // DataStore has not answered yet. Showing nothing for a frame or two beats guessing: rooting at
+    // Home and then yanking a returning user to onboarding (or the reverse) is visible and jarring.
+    // The splash is still on top at this point, so this is not a blank screen in practice.
+    val sessionExists = hasSession ?: run {
+        Surface(color = MaterialTheme.colorScheme.background) { Box(Modifier.fillMaxSize()) }
+        return
+    }
+
+    // Evaluated once, when the back stack is first created: later sign-in and sign-out move the stack
+    // explicitly rather than re-rooting it underneath whatever the user is looking at.
+    val backStack = rememberNavBackStack(if (sessionExists) HomeKey else OnboardingKey)
     val useBottomBar = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
+
+    val topKey = backStack.lastOrNull()
+    val isOnTopLevelTab = TopLevelDestination.entries.any { it.key == topKey }
+    val isOnPlayer = topKey is PlayerKey
+
+    /*
+     * Which tab is highlighted, found by scanning *down* the stack rather than reading its top.
+     *
+     * The Player is pushed on top of whichever tab opened it, so on `[Home, Player]` the answer is
+     * Home. Reading only the top would leave every item unselected while a video plays.
+     */
+    val activeTab = backStack
+        .lastOrNull { key -> TopLevelDestination.entries.any { it.key == key } }
+        ?.let { key -> TopLevelDestination.entries.first { it.key == key } }
+
+    // Fullscreen is the Player's own state, reported up because only the nav graph can hide the bar.
+    var isPlayerFullscreen by remember { mutableStateOf(false) }
+
+    /*
+     * The bar stays up on the Player so tabs are reachable while something plays, and goes away for
+     * fullscreen playback and for Onboarding and Profile, which are full-screen flows that own their
+     * own navigation.
+     */
+    val showNavBar = isOnTopLevelTab || (isOnPlayer && !isPlayerFullscreen)
 
     val nowPlaying by mainViewModel.nowPlaying.collectAsStateWithLifecycle()
     val activeDownloads by mainViewModel.activeDownloadCount.collectAsStateWithLifecycle()
@@ -81,23 +126,38 @@ fun StreamlyNavGraph(
         NavBarItem(
             label = stringResource(tab.labelRes),
             icon = tab.icon,
-            selected = tab == currentTab,
+            selected = tab == activeTab,
             badgeCount = if (tab == TopLevelDestination.Downloads) activeDownloads else 0,
             onClick = { backStack.selectTab(tab) },
         )
     }
 
-    val showMiniPlayer = nowPlaying != null &&
-        (currentTab == TopLevelDestination.Home || currentTab == TopLevelDestination.Downloads)
+    // Keyed on the top of the stack, not the active tab: on the Player the real player is on screen,
+    // so a mini-player of the same video docked over it would be absurd.
+    val showMiniPlayer = nowPlaying != null && (topKey == HomeKey || topKey == DownloadsKey)
 
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(modifier.fillMaxSize()) {
-            if (currentTab != null && !useBottomBar) {
+            if (showNavBar && !useBottomBar) {
                 StreamlyNavRail(items = navItems)
             }
 
+            val showBottomBar = showNavBar && useBottomBar
+
             Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f)) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        // The bar below already sits over the system navigation bar, so screens above
+                        // it must not pad for those insets a second time.
+                        .then(
+                            if (showBottomBar) {
+                                Modifier.consumeWindowInsets(WindowInsets.navigationBars)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) {
                     NavDisplay(
                         backStack = backStack,
                         modifier = Modifier.fillMaxSize(),
@@ -109,11 +169,28 @@ fun StreamlyNavGraph(
                             rememberViewModelStoreNavEntryDecorator(),
                         ),
                         entryProvider = entryProvider {
+                            entry<OnboardingKey> {
+                                OnboardingRoute(
+                                    // Onboarding is done with: it is replaced, not stacked under Home,
+                                    // so back from Home leaves the app rather than returning here.
+                                    onSignedIn = { backStack.resetTo(HomeKey) },
+                                )
+                            }
                             entry<HomeKey> {
-                                HomeRoute(onNavigateToPlayer = { videoId -> backStack.add(PlayerKey(videoId)) })
+                                HomeRoute(
+                                    onNavigateToPlayer = { videoId -> backStack.add(PlayerKey(videoId)) },
+                                    onNavigateToProfile = { backStack.add(ProfileKey) },
+                                )
                             }
                             entry<ShortsKey> {
                                 ShortsRoute()
+                            }
+                            entry<ProfileKey> {
+                                ProfileRoute(
+                                    onBack = { backStack.removeLastOrNull() },
+                                    onNavigateToDownloads = { backStack.selectTab(TopLevelDestination.Downloads) },
+                                    onSignedOut = { backStack.resetTo(OnboardingKey) },
+                                )
                             }
                             entry<DownloadsKey> {
                                 DownloadsRoute(onNavigateToPlayer = { videoId -> backStack.add(PlayerKey(videoId)) })
@@ -129,6 +206,7 @@ fun StreamlyNavGraph(
                                         backStack.removeLastOrNull()
                                         backStack.add(PlayerKey(videoId))
                                     },
+                                    onFullscreenChange = { fullscreen -> isPlayerFullscreen = fullscreen },
                                 )
                             }
                         },
@@ -147,12 +225,23 @@ fun StreamlyNavGraph(
                     }
                 }
 
-                if (currentTab != null && useBottomBar) {
+                if (showBottomBar) {
                     StreamlyBottomBar(items = navItems)
                 }
             }
         }
     }
+}
+
+/**
+ * Replaces the whole back stack with [key].
+ *
+ * Pushes first and trims after, so the stack is never momentarily empty — NavDisplay has nothing to
+ * render in that state.
+ */
+private fun NavBackStack<NavKey>.resetTo(key: NavKey) {
+    add(key)
+    while (size > 1) removeAt(0)
 }
 
 /** Pops back to Home, then pushes [tab] unless it is Home itself. No-op if already on [tab]. */

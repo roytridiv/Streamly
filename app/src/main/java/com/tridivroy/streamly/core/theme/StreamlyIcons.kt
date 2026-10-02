@@ -154,6 +154,42 @@ object StreamlyIcons {
         stroked("Refresh", "M19 12a7 7 0 1 1-2.1-5M19 4v4h-4", strokeWidth = 1.8f)
     }
 
+    /** Head and shoulders — the Profile entry point and the signed-out avatar. */
+    val User: ImageVector by lazy {
+        stroked("User", "M15.5 8.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1")
+    }
+
+    val Mail: ImageVector by lazy {
+        stroked("Mail", "M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5zM4.5 7l7.5 5.5L19.5 7")
+    }
+
+    val ChevronRight: ImageVector by lazy {
+        stroked("ChevronRight", "m9 6 6 6-6 6", strokeWidth = 2f)
+    }
+
+    /** Door with an arrow leaving it — Sign out. */
+    val SignOut: ImageVector by lazy {
+        stroked("SignOut", "M14 20H6.5A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4H14M11 12h9m0 0-3.5-3.5M20 12l-3.5 3.5")
+    }
+
+    /** Four-point spark — the Premium badge and the sign-in benefits list. */
+    val Spark: ImageVector by lazy {
+        filled(
+            name = "Spark",
+            pathData = "M12 3l1.9 5.1a1 1 0 0 0 .6.6L19.6 11a1 1 0 0 1 0 1.9l-5.1 1.9a1 1 0 0 0-.6.6L12 21l-1.9-5.1a1 1 0 0 0-.6-.6L4.4 13a1 1 0 0 1 0-1.9l5.1-1.9a1 1 0 0 0 .6-.6Z",
+        )
+    }
+
+    /** Crossed-out cloud — the "watch offline" benefit. */
+    val CloudOff: ImageVector by lazy {
+        stroked("CloudOff", "M7 17h9.5a3.5 3.5 0 0 0 .8-6.9A5 5 0 0 0 8.5 7.6M4 4l16 16")
+    }
+
+    /** No-ads benefit: a slashed circle. */
+    val Shield: ImageVector by lazy {
+        stroked("Shield", "M12 3.5 5.5 6v5.5c0 4 2.8 7.4 6.5 8.5 3.7-1.1 6.5-4.5 6.5-8.5V6z")
+    }
+
     private const val HEART_PATH =
         "M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"
 

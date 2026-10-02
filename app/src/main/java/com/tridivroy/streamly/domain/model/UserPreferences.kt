@@ -6,6 +6,10 @@ data class UserPreferences(
     val savedVideoIds: Set<String> = emptySet(),
     /** Channel handles the user subscribes to -- drives Subscribe and Follow. */
     val subscribedChannels: Set<String> = emptySet(),
+    /** IDs of videos playback has started for, behind the Profile screen's "watched" stat. */
+    val watchedVideoIds: Set<String> = emptySet(),
+    /** The signed-in account, or `null` when signed out. */
+    val session: UserSession? = null,
     val playbackQuality: PlaybackQuality = PlaybackQuality.Auto,
     val themeMode: ThemeMode = ThemeMode.System,
 )

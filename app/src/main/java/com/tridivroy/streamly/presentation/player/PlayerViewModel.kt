@@ -159,6 +159,8 @@ class PlayerViewModel @AssistedInject constructor(
         applyQualityCap(preferencesRepository.userPreferences.first().playbackQuality)
         val mediaItem = downloadTracker.downloadedMediaItem(video.id) ?: video.toMediaItem()
         nowPlayingStore.onPlaybackStarted(video)
+        // Counts once per video, for the Profile screen's "watched" stat.
+        preferencesRepository.markWatched(video.id)
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
@@ -224,14 +226,21 @@ class PlayerViewModel @AssistedInject constructor(
         }
     }
 
+    /**
+     * Leaves playback running.
+     *
+     * The Player screen is no longer the only place a video can play from: switching tabs from the
+     * bottom bar pops this entry, and the mini-player on Home and Downloads picks the same video up
+     * mid-stream. Stopping here would make that handover impossible — and did, until the bar was shown
+     * on the Player: the mini-player could never appear at all, because reaching the tab that shows it
+     * always destroyed the playback it was meant to continue.
+     *
+     * The player is still never released (it is shared, see MediaModule), the mini-player's button can
+     * pause it, [NowPlayingStore] drops it when the player moves on, ShortsViewModel pauses it when the
+     * Shorts pool takes over, and the process-lifecycle observer pauses it when the app backgrounds.
+     */
     override fun onCleared() {
         exoPlayer.removeListener(playerListener)
-        // Only stop our own item, in case another screen already took over the shared player.
-        if (exoPlayer.currentMediaItem?.mediaId == videoId) {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-            nowPlayingStore.onPlaybackStopped(videoId)
-        }
     }
 
     private companion object {

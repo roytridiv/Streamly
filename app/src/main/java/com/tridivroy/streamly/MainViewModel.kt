@@ -34,6 +34,16 @@ class MainViewModel @Inject constructor(
         .map { it.themeMode }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
 
+    /**
+     * Whether a session (including a guest one) exists, for picking the start destination.
+     *
+     * `null` means DataStore has not been read yet — the nav graph waits rather than guessing, since
+     * guessing wrong would either flash onboarding at a returning user or flash Home at a new one.
+     */
+    val hasSession: StateFlow<Boolean?> = preferencesRepository.userPreferences
+        .map { it.session != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     /** What the mini-player shows, or `null` when nothing is loaded. */
     val nowPlaying: StateFlow<NowPlaying?> = nowPlayingStore.nowPlaying
 
