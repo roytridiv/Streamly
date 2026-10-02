@@ -370,3 +370,32 @@ Fix application startup and navigation flow based on requirement specification:
 ````text
 Update Navigation layout so that the BottomNavigationBar remains visible on the PlayerScreen as well, allowing direct switching between tabs while a video plays.
 ````
+
+## 2026-10-02 22:29:07 BST · session `196cf442`
+
+````text
+Run physical device smoke test, verify full app UX flow via ADB, and auto-fix any detected issues:
+
+1. Target Device: Connected Android physical device via ADB (`adb devices`).
+
+2. Automated Verification Steps:
+   - Build and install debug APK: `./gradlew installDebug`.
+   - Launch main activity (`adb shell am start -n com.example.streamly/.MainActivity`).
+   - Onboarding & Auth Flow:
+     * Verify initial launch opens Onboarding screen.
+     * Test "Continue as Guest" tap, session persistence, and instant navigation to Home.
+   - Core Navigation & Tab Features:
+     * Verify Home feed scrolling and thumbnail rendering.
+     * Open Shorts tab: verify vertical swipe behavior and video playback.
+     * Open Player screen: verify video playback, control auto-hide, scrubber interaction, and portrait-landscape orientation toggling/reset.
+     * Check Downloads screen: confirm offline storage list & removal actions.
+     * Open Profile: test Sign In toggle, stats display, and Sign Out confirmation dialog.
+
+3. Auto-Fix & Quality Check:
+   - Capture `adb logcat` during test execution to check for any runtime exceptions, Compose re-composition glitches, or Media3/ExoPlayer errors.
+   - If any crash, navigation bug, UI overlap, or unexpected behavior is found, independently analyze the root cause and refactor/fix the code immediately.
+   - Re-run `./gradlew assembleDebug` after fixes to confirm a completely stable, green build.
+
+4. Output:
+   - Provide a final summary of verified features and list any auto-fixed bugs.
+````

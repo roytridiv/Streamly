@@ -32,7 +32,8 @@ class MainViewModel @Inject constructor(
 
     val themeMode: StateFlow<ThemeMode> = preferencesRepository.userPreferences
         .map { it.themeMode }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
+        // Dark is the initial value as well as the stored default, so the first frame is never light.
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.Dark)
 
     /**
      * Whether a session (including a guest one) exists, for picking the start destination.

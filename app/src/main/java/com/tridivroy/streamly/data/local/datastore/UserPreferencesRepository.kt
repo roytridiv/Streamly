@@ -39,7 +39,7 @@ class UserPreferencesRepository @Inject constructor(
                 watchedVideoIds = prefs[Keys.WATCHED_VIDEO_IDS].orEmpty(),
                 session = prefs.toSession(),
                 playbackQuality = prefs[Keys.PLAYBACK_QUALITY].toEnumOrNull<PlaybackQuality>() ?: PlaybackQuality.Auto,
-                themeMode = prefs[Keys.THEME_MODE].toEnumOrNull<ThemeMode>() ?: ThemeMode.System,
+                themeMode = prefs[Keys.THEME_MODE].toEnumOrNull<ThemeMode>() ?: ThemeMode.Dark,
             )
         }
         .distinctUntilChanged()

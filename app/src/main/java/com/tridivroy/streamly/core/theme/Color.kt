@@ -109,6 +109,16 @@ object StreamlyBrand {
     val GlowEdge = SageMint.copy(alpha = 0.22f)
     val GlowAmbient = SageMint.copy(alpha = 0.32f)
 
+    /**
+     * Selected/active fill and text for controls that sit on a video frame.
+     *
+     * The themed `primaryContainer`/`onPrimaryContainer` pair cannot be used there: in the light scheme
+     * it resolves to a dark teal on a pale tint, which is unreadable over dark footage. These are the
+     * dark-scheme values, pinned, because the frame underneath is never themed.
+     */
+    val MintTintOnMedia = SageMint.copy(alpha = 0.16f)
+    val MintTextOnMedia = MintText
+
     /** Active "liked" tint in the Shorts rail. */
     val Like = SageMint
 }

@@ -11,7 +11,14 @@ data class UserPreferences(
     /** The signed-in account, or `null` when signed out. */
     val session: UserSession? = null,
     val playbackQuality: PlaybackQuality = PlaybackQuality.Auto,
-    val themeMode: ThemeMode = ThemeMode.System,
+    /**
+     * Defaults to [ThemeMode.Dark], not System.
+     *
+     * Nordic Mint is a dark-only design; the light scheme exists so an explicit Light choice works.
+     * Defaulting to System meant every device without a system dark mode -- anything pre-Android 10,
+     * or just a phone in light mode -- opened the app in the light variant and never showed the brand.
+     */
+    val themeMode: ThemeMode = ThemeMode.Dark,
 )
 
 /** Caps streaming and download resolution. [maxVideoHeight] `null` means no cap (adaptive). */
