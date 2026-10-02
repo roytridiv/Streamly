@@ -2,6 +2,8 @@ package com.tridivroy.streamly.core.media
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
@@ -10,9 +12,12 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadHelper
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadService
+import com.tridivroy.streamly.domain.model.Channel
+import com.tridivroy.streamly.domain.model.Chapter
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoDownload
+import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.domain.repository.DownloadRepository
 import com.tridivroy.streamly.domain.repository.PreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -108,7 +113,11 @@ class DownloadTracker @Inject constructor(
             )
             try {
                 helper.awaitPrepared()
-                helper.getDownloadRequest(video.id, json.encodeToString(DownloadMetadata.serializer(), video.toMetadata()).encodeToByteArray())
+                val metadata = video.toMetadata(videoHeight = helper.selectedVideoHeight())
+                helper.getDownloadRequest(
+                    video.id,
+                    json.encodeToString(DownloadMetadata.serializer(), metadata).encodeToByteArray(),
+                )
             } finally {
                 helper.release()
             }
@@ -192,6 +201,7 @@ class DownloadTracker @Inject constructor(
                 // C.PERCENTAGE_UNSET (-1) until the total size is known.
                 progressPercent = percentDownloaded.takeIf { it >= 0f },
                 bytesDownloaded = bytesDownloaded,
+                videoHeight = decodeMetadata(this)?.videoHeight,
             ),
             startTimeMs = startTimeMs,
         )
@@ -207,6 +217,25 @@ class DownloadTracker @Inject constructor(
     }
 }
 
+/**
+ * Height of the video rendition the helper selected, so Downloads can label what is on disk rather
+ * than what was asked for. `null` when the manifest does not declare one, or on any surprise — a
+ * missing label must never fail a download.
+ */
+@OptIn(UnstableApi::class)
+private fun DownloadHelper.selectedVideoHeight(): Int? = runCatching {
+    (0 until periodCount)
+        .flatMap { period -> getTracks(period).groups }
+        .filter { group -> group.type == C.TRACK_TYPE_VIDEO }
+        .flatMap { group ->
+            (0 until group.length)
+                .filter { group.isTrackSelected(it) }
+                .map { group.getTrackFormat(it).height }
+        }
+        .filter { it != Format.NO_VALUE }
+        .maxOrNull()
+}.getOrNull()
+
 private suspend fun DownloadHelper.awaitPrepared() = suspendCancellableCoroutine { continuation ->
     prepare(object : DownloadHelper.Callback {
         override fun onPrepared(helper: DownloadHelper) = continuation.resume(Unit)
@@ -214,7 +243,10 @@ private suspend fun DownloadHelper.awaitPrepared() = suspendCancellableCoroutine
     })
 }
 
-/** Video fields persisted inside the download request (the domain model stays serialization-free). */
+/**
+ * Video fields persisted inside the download request, so a downloaded video shows its channel,
+ * chapters and stats with no network (the domain model stays serialization-free).
+ */
 @Serializable
 private data class DownloadMetadata(
     val id: String,
@@ -225,8 +257,64 @@ private data class DownloadMetadata(
     val category: String,
     val duration: Long,
     val isShort: Boolean,
+    val channel: ChannelMetadata? = null,
+    val viewCount: Long = 0L,
+    val likeCount: Long = 0L,
+    val commentCount: Long = 0L,
+    val publishedAt: Long? = null,
+    val chapters: List<ChapterMetadata> = emptyList(),
+    val soundLabel: String? = null,
+    val tags: List<String> = emptyList(),
+    /** Height of the rendition actually written to the cache, for the "720p" label in Downloads. */
+    val videoHeight: Int? = null,
 ) {
-    fun toVideo() = Video(id, title, description, videoUrl, thumbnailUrl, category, duration, isShort)
+    fun toVideo() = Video(
+        id = id,
+        title = title,
+        description = description,
+        videoUrl = videoUrl,
+        thumbnailUrl = thumbnailUrl,
+        category = category,
+        duration = duration,
+        isShort = isShort,
+        channel = channel?.toChannel() ?: Channel.Unknown,
+        stats = VideoStats(viewCount, likeCount, commentCount, publishedAt),
+        chapters = chapters.map { Chapter(it.position, it.label) },
+        soundLabel = soundLabel,
+        tags = tags,
+    )
 }
 
-private fun Video.toMetadata() = DownloadMetadata(id, title, description, videoUrl, thumbnailUrl, category, duration, isShort)
+@Serializable
+private data class ChannelMetadata(
+    val name: String,
+    val handle: String,
+    val avatarUrl: String,
+    val subscriberCount: Long,
+) {
+    fun toChannel() = Channel(name, handle, avatarUrl, subscriberCount)
+}
+
+@Serializable
+private data class ChapterMetadata(val position: Long, val label: String)
+
+private fun Video.toMetadata(videoHeight: Int? = null) = DownloadMetadata(
+    id = id,
+    title = title,
+    description = description,
+    videoUrl = videoUrl,
+    thumbnailUrl = thumbnailUrl,
+    category = category,
+    duration = duration,
+    isShort = isShort,
+    channel = channel.takeIf { it != Channel.Unknown }
+        ?.let { ChannelMetadata(it.name, it.handle, it.avatarUrl, it.subscriberCount) },
+    viewCount = stats.viewCount,
+    likeCount = stats.likeCount,
+    commentCount = stats.commentCount,
+    publishedAt = stats.publishedAtEpochSeconds,
+    chapters = chapters.map { ChapterMetadata(it.positionSeconds, it.label) },
+    soundLabel = soundLabel,
+    tags = tags,
+    videoHeight = videoHeight,
+)

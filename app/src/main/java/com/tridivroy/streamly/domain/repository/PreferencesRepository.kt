@@ -9,6 +9,9 @@ interface PreferencesRepository {
     val userPreferences: Flow<UserPreferences>
 
     suspend fun toggleFavorite(videoId: String)
+    suspend fun toggleSaved(videoId: String)
+    /** [channelHandle] without the leading "@". */
+    suspend fun toggleSubscription(channelHandle: String)
     suspend fun setPlaybackQuality(quality: PlaybackQuality)
     suspend fun setThemeMode(mode: ThemeMode)
 }

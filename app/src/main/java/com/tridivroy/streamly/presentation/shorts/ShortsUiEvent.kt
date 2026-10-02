@@ -8,6 +8,9 @@ sealed interface ShortsUiEvent {
     data class OnPageSettled(val index: Int) : ShortsUiEvent
     data object OnTogglePlay : ShortsUiEvent
     data class OnLikeClick(val videoId: String) : ShortsUiEvent
+    data class OnSaveClick(val videoId: String) : ShortsUiEvent
+    /** [channelHandle] without the leading "@". */
+    data class OnFollowClick(val channelHandle: String) : ShortsUiEvent
     data class OnShareClick(val video: Video) : ShortsUiEvent
     data object OnScreenStart : ShortsUiEvent
     data object OnScreenStop : ShortsUiEvent

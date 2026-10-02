@@ -2,6 +2,10 @@ package com.tridivroy.streamly.domain.model
 
 data class UserPreferences(
     val favoriteVideoIds: Set<String> = emptySet(),
+    /** Videos saved from the Shorts rail. Separate from favourites, which Like drives. */
+    val savedVideoIds: Set<String> = emptySet(),
+    /** Channel handles the user subscribes to -- drives Subscribe and Follow. */
+    val subscribedChannels: Set<String> = emptySet(),
     val playbackQuality: PlaybackQuality = PlaybackQuality.Auto,
     val themeMode: ThemeMode = ThemeMode.System,
 )

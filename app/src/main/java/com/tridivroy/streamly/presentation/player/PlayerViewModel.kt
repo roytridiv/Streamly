@@ -6,6 +6,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.tridivroy.streamly.core.media.DownloadTracker
+import com.tridivroy.streamly.core.media.NowPlayingStore
 import com.tridivroy.streamly.core.media.toMediaItem
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.model.PlaybackQuality
@@ -45,6 +46,7 @@ class PlayerViewModel @AssistedInject constructor(
     private val videoRepository: VideoRepository,
     private val downloadRepository: DownloadRepository,
     private val downloadTracker: DownloadTracker,
+    private val nowPlayingStore: NowPlayingStore,
     private val preferencesRepository: PreferencesRepository,
     private val exoPlayer: ExoPlayer,
 ) : ViewModel() {
@@ -79,11 +81,26 @@ class PlayerViewModel @AssistedInject constructor(
     init {
         exoPlayer.addListener(playerListener)
         observeDownload()
+        observeEngagement()
         loadVideo()
     }
 
     fun onEvent(event: PlayerUiEvent) {
         when (event) {
+            PlayerUiEvent.OnLikeClick -> viewModelScope.launch {
+                preferencesRepository.toggleFavorite(videoId)
+            }
+
+            PlayerUiEvent.OnSubscribeClick -> viewModelScope.launch {
+                val handle = (_uiState.value as? PlayerUiState.Success)?.video?.channel?.handle
+                if (!handle.isNullOrBlank()) preferencesRepository.toggleSubscription(handle)
+            }
+
+            PlayerUiEvent.OnShareClick -> viewModelScope.launch {
+                val video = (_uiState.value as? PlayerUiState.Success)?.video ?: return@launch
+                _effects.send(PlayerUiEffect.CopyLink(video.videoUrl))
+            }
+
             PlayerUiEvent.Retry -> loadVideo()
             PlayerUiEvent.OnDownloadClick -> toggleDownload()
             is PlayerUiEvent.OnRelatedVideoClick -> viewModelScope.launch {
@@ -104,7 +121,13 @@ class PlayerViewModel @AssistedInject constructor(
                             PlayerUiState.Empty
                         } else {
                             startPlayback(video)
-                            PlayerUiState.Success(video, download)
+                            val prefs = preferencesRepository.userPreferences.first()
+                            PlayerUiState.Success(
+                                video = video,
+                                download = download,
+                                isLiked = video.id in prefs.favoriteVideoIds,
+                                isSubscribed = video.channel.handle.takeIf { it.isNotBlank() } in prefs.subscribedChannels,
+                            )
                         }
                     },
                     onFailure = { PlayerUiState.Error(it.message) },
@@ -135,6 +158,7 @@ class PlayerViewModel @AssistedInject constructor(
     private suspend fun startPlayback(video: Video) {
         applyQualityCap(preferencesRepository.userPreferences.first().playbackQuality)
         val mediaItem = downloadTracker.downloadedMediaItem(video.id) ?: video.toMediaItem()
+        nowPlayingStore.onPlaybackStarted(video)
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
@@ -161,6 +185,30 @@ class PlayerViewModel @AssistedInject constructor(
         }
     }
 
+    /**
+     * Keeps Like and Subscribe in step with DataStore. Both are optimistic in the UI only in the
+     * sense that DataStore round-trips in a frame or two; the state here is always the stored truth.
+     */
+    private fun observeEngagement() {
+        viewModelScope.launch {
+            preferencesRepository.userPreferences
+                .map { prefs -> prefs.favoriteVideoIds to prefs.subscribedChannels }
+                .distinctUntilChanged()
+                .collect { (favorites, subscriptions) ->
+                    _uiState.update { state ->
+                        if (state is PlayerUiState.Success) {
+                            state.copy(
+                                isLiked = videoId in favorites,
+                                isSubscribed = state.video.channel.handle.takeIf { it.isNotBlank() } in subscriptions,
+                            )
+                        } else {
+                            state
+                        }
+                    }
+                }
+        }
+    }
+
     /** Not downloaded / failed → start; queued / downloading → cancel; downloaded → delete. */
     private fun toggleDownload() {
         val state = _uiState.value as? PlayerUiState.Success ?: return
@@ -182,6 +230,7 @@ class PlayerViewModel @AssistedInject constructor(
         if (exoPlayer.currentMediaItem?.mediaId == videoId) {
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
+            nowPlayingStore.onPlaybackStopped(videoId)
         }
     }
 

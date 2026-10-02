@@ -40,11 +40,11 @@ class ShortsViewModel @Inject constructor(
 
     private var loadJob: Job? = null
 
-    /** Persisted favourites (DataStore); kept so a (re)load shows likes immediately. */
-    private var favoriteIds: Set<String> = emptySet()
+    /** Persisted engagement (DataStore); kept so a (re)load shows likes and saves immediately. */
+    private var engagement = Engagement()
 
     init {
-        observeFavorites()
+        observeEngagement()
         loadShorts()
     }
 
@@ -60,9 +60,17 @@ class ShortsViewModel @Inject constructor(
                 state.copy(isPaused = !state.isPaused)
             }
 
-            // The state updates via observeFavorites() once DataStore has persisted the change.
+            // The state updates via observeEngagement() once DataStore has persisted the change.
             is ShortsUiEvent.OnLikeClick -> viewModelScope.launch {
                 preferencesRepository.toggleFavorite(event.videoId)
+            }
+
+            is ShortsUiEvent.OnSaveClick -> viewModelScope.launch {
+                preferencesRepository.toggleSaved(event.videoId)
+            }
+
+            is ShortsUiEvent.OnFollowClick -> viewModelScope.launch {
+                if (event.channelHandle.isNotBlank()) preferencesRepository.toggleSubscription(event.channelHandle)
             }
 
             is ShortsUiEvent.OnShareClick -> viewModelScope.launch {
@@ -93,7 +101,9 @@ class ShortsViewModel @Inject constructor(
                             videos = playable,
                             activeIndex = 0,
                             preloadIndex = playerPool.activate(0, playable),
-                            likedIds = favoriteIds,
+                            likedIds = engagement.liked,
+                            savedIds = engagement.saved,
+                            followedChannels = engagement.followed,
                         )
                     }
                 },
@@ -102,17 +112,30 @@ class ShortsViewModel @Inject constructor(
         }
     }
 
-    private fun observeFavorites() {
+    private fun observeEngagement() {
         viewModelScope.launch {
             preferencesRepository.userPreferences
-                .map { it.favoriteVideoIds }
+                .map { Engagement(it.favoriteVideoIds, it.savedVideoIds, it.subscribedChannels) }
                 .distinctUntilChanged()
-                .collect { ids ->
-                    favoriteIds = ids
-                    updateSuccess { it.copy(likedIds = ids) }
+                .collect { latest ->
+                    engagement = latest
+                    updateSuccess {
+                        it.copy(
+                            likedIds = latest.liked,
+                            savedIds = latest.saved,
+                            followedChannels = latest.followed,
+                        )
+                    }
                 }
         }
     }
+
+    /** The three persisted sets the rail reads, grouped so one flow carries them all. */
+    private data class Engagement(
+        val liked: Set<String> = emptySet(),
+        val saved: Set<String> = emptySet(),
+        val followed: Set<String> = emptySet(),
+    )
 
     private fun activatePage(index: Int) = updateSuccess { state ->
         if (index == state.activeIndex || index !in state.videos.indices) return@updateSuccess state

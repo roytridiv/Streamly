@@ -3,6 +3,8 @@
 
     <!-- Home -->
     <string name="home_category_all">All</string>
+    <string name="home_offline_tag">Offline</string>
+    <string name="home_views">%1$s views</string>
     <string name="home_refresh">Refresh</string>
     <string name="home_retry">Retry</string>
     <string name="home_error_generic">Something went wrong. Check your connection and try again.</string>
@@ -22,6 +24,11 @@
     <string name="shorts_like">Like</string>
     <string name="shorts_unlike">Unlike</string>
     <string name="shorts_share">Share</string>
+    <string name="shorts_comments">Comments</string>
+    <string name="shorts_save">Save</string>
+    <string name="shorts_unsave">Remove from saved</string>
+    <string name="shorts_follow">Follow</string>
+    <string name="shorts_following">Following</string>
     <string name="shorts_share_chooser">Share video</string>
     <string name="shorts_play">Play</string>
     <string name="shorts_retry">Retry</string>
@@ -30,28 +37,51 @@
 
     <!-- Downloads -->
     <string name="nav_downloads">Downloads</string>
+    <string name="mini_player_play">Play</string>
+    <string name="mini_player_pause">Pause</string>
     <string name="download_channel_name">Downloads</string>
     <string name="download_channel_description">Progress of videos being saved for offline viewing</string>
     <string name="downloads_title">Downloads</string>
-    <string name="downloads_empty">No downloads yet. Tap Download on any video to watch it offline.</string>
+    <string name="downloads_summary">%1$d ready · %2$d saving</string>
+    <string name="downloads_device_storage">Device storage</string>
+    <string name="downloads_storage_used">%1$s / %2$s</string>
+    <string name="downloads_legend_streamly">Streamly %1$s</string>
+    <string name="downloads_legend_other">Other %1$s</string>
+    <string name="downloads_legend_free">Free %1$s</string>
+    <string name="downloads_offline_ready">Offline Ready</string>
+    <string name="downloads_empty_title">Nothing saved yet</string>
+    <string name="downloads_empty_hint">Tap Download on any video to watch it offline.</string>
     <string name="downloads_error_generic">Couldn\u2019t read your downloads.</string>
     <string name="downloads_retry">Retry</string>
     <string name="downloads_remove">Remove download</string>
-    <string name="downloads_retry_download">Retry download</string>
     <string name="download_status_queued">Waiting\u2026</string>
-    <string name="download_status_downloading">Downloading %1$d%%</string>
-    <string name="download_status_downloading_indeterminate">Downloading\u2026</string>
-    <string name="download_status_downloaded">Available offline \u00b7 %1$s</string>
     <string name="download_status_failed">Download failed</string>
-    <string name="player_tab_details">Details</string>
+    <string name="player_tab_overview">Overview</string>
+    <string name="player_tab_key_moments">Key Moments</string>
+    <string name="player_now_playing">NOW PLAYING</string>
+    <string name="player_fullscreen_enter">Enter fullscreen</string>
+    <string name="player_fullscreen_exit">Exit fullscreen</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_share">Share</string>
+    <string name="player_link_copied">Link copied</string>
+    <string name="player_offline_ready">Offline ready</string>
+    <string name="player_subscribers">%1$s subscribers</string>
+    <string name="player_autoplay_count">Autoplay on · %1$d clips</string>
+    <string name="player_subscribe">Subscribe</string>
+    <string name="player_subscribed">Subscribed</string>
+    <string name="player_show_more">Show more</string>
+    <string name="player_show_less">Show less</string>
+    <string name="player_key_moments_hint">Tap a moment to jump there.</string>
+    <string name="player_no_key_moments">No key moments for this video.</string>
+    <string name="player_layout_list">List</string>
+    <string name="player_layout_carousel">Carousel</string>
     <string name="player_tab_up_next">Up Next</string>
     <string name="player_up_next_empty">Nothing else to watch right now.</string>
     <string name="player_download">Download</string>
-    <string name="player_download_cancel">Downloading %1$d%% \u00b7 Cancel</string>
+    <string name="player_download_percent">%1$d%%</string>
     <string name="player_download_queued">Queued \u00b7 Cancel</string>
-    <string name="player_downloaded">Downloaded \u00b7 Remove</string>
     <string name="player_download_failed">Download failed \u00b7 Retry</string>
-    <string name="player_download_error">Couldn\u2019t start download: %1$s</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

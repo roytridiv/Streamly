@@ -6,6 +6,8 @@ data class VideoDownload(
     /** 0–100, or `null` while the total size is still unknown. */
     val progressPercent: Float?,
     val bytesDownloaded: Long,
+    /** Height of the downloaded rendition, e.g. 720. `null` when the source did not declare one. */
+    val videoHeight: Int? = null,
 )
 
 enum class DownloadStatus {

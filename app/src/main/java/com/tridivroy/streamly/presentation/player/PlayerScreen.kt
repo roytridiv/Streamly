@@ -2,50 +2,36 @@ package com.tridivroy.streamly.presentation.player
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -60,15 +46,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -79,18 +63,27 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.core.theme.StreamlyBrand
 import com.tridivroy.streamly.core.theme.StreamlyIcons
-import com.tridivroy.streamly.core.theme.StreamlyMediaColors
+import com.tridivroy.streamly.core.theme.StreamlyShape
 import com.tridivroy.streamly.core.theme.StreamlyTheme
-import com.tridivroy.streamly.domain.model.DownloadStatus
+import com.tridivroy.streamly.core.theme.StreamlyType
+import com.tridivroy.streamly.core.theme.TextMuted
+import com.tridivroy.streamly.domain.model.Channel
+import com.tridivroy.streamly.domain.model.Chapter
 import com.tridivroy.streamly.domain.model.Video
-import com.tridivroy.streamly.domain.model.VideoDownload
-import com.tridivroy.streamly.presentation.common.formatDuration
-import kotlin.math.roundToInt
+import com.tridivroy.streamly.domain.model.VideoStats
+import com.tridivroy.streamly.presentation.common.rememberPlaybackProgress
+import com.tridivroy.streamly.presentation.components.StreamlyToastHost
+import com.tridivroy.streamly.presentation.components.rememberToastState
+import com.tridivroy.streamly.presentation.player.components.FloatingPlayerViewport
+import com.tridivroy.streamly.presentation.player.components.KeyMomentsTab
+import com.tridivroy.streamly.presentation.player.components.OverviewTab
+import com.tridivroy.streamly.presentation.player.components.PlayerActionBar
+import com.tridivroy.streamly.presentation.player.components.PlayerTabRow
+import com.tridivroy.streamly.presentation.player.components.rememberPlayerControlsState
+import com.tridivroy.streamly.presentation.player.components.UpNextTab
 
 /** Stateful entry point: wires [PlayerViewModel] to the stateless [PlayerScreen]. */
 @Composable
@@ -107,18 +100,25 @@ fun PlayerRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val snackbarHostState = remember { SnackbarHostState() }
+    val toastState = rememberToastState()
     val currentOnNavigateToVideo by rememberUpdatedState(onNavigateToVideo)
+
+    val linkCopied = stringResource(R.string.player_link_copied)
+    val downloadFailedPrefix = stringResource(R.string.player_download_failed)
 
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.effects.collect { effect ->
                 when (effect) {
-                    is PlayerUiEffect.DownloadFailed -> snackbarHostState.showSnackbar(
-                        context.getString(R.string.player_download_error, effect.message.orEmpty()),
-                    )
+                    is PlayerUiEffect.DownloadFailed ->
+                        toastState.show(effect.message?.takeIf { it.isNotBlank() } ?: downloadFailedPrefix)
 
                     is PlayerUiEffect.NavigateToVideo -> currentOnNavigateToVideo(effect.videoId)
+
+                    is PlayerUiEffect.CopyLink -> {
+                        context.copyToClipboard(effect.url)
+                        toastState.show(linkCopied)
+                    }
                 }
             }
         }
@@ -138,14 +138,16 @@ fun PlayerRoute(
         }
     }
 
-    PlayerScreen(
-        uiState = uiState,
-        player = viewModel.player,
-        windowSizeClass = windowSizeClass,
-        snackbarHostState = snackbarHostState,
-        onEvent = onEvent,
-        onBack = onBack,
-    )
+    Box(Modifier.fillMaxSize()) {
+        PlayerScreen(
+            uiState = uiState,
+            player = viewModel.player,
+            windowSizeClass = windowSizeClass,
+            onEvent = onEvent,
+            onBack = onBack,
+        )
+        StreamlyToastHost(state = toastState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
 }
 
 @Composable
@@ -153,335 +155,318 @@ fun PlayerScreen(
     uiState: PlayerUiState,
     player: Player,
     windowSizeClass: WindowSizeClass,
-    snackbarHostState: SnackbarHostState,
     onEvent: (PlayerUiEvent) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Phone in landscape: give the whole screen to the video.
-    val isFullscreen = windowSizeClass.heightSizeClass == WindowHeightSizeClass.Compact &&
-        uiState is PlayerUiState.Success
+    val isCompactHeight = windowSizeClass.heightSizeClass == WindowHeightSizeClass.Compact
+    val isCompactWidth = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
 
-    if (isFullscreen) {
-        ImmersiveMode()
-        VideoSurface(
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+
+    /*
+     * Whether *we* asked for landscape, saved rather than re-derived.
+     *
+     * This used to be read from the window size class at the moment of the toggle, which silently
+     * broke the exit path: a phone in landscape is ~800x360dp, so its widthSizeClass is Medium, not
+     * Compact. The lock was therefore applied on the way in (from compact-width portrait) and the
+     * unlock skipped on the way out, leaving the whole app stuck in landscape. Remembering the fact
+     * means the unlock never depends on the size class we happen to be reading now.
+     */
+    var lockedLandscape by rememberSaveable { mutableStateOf(false) }
+
+    // Rotating a phone into landscape still enters fullscreen on its own, and rotating back out of it
+    // leaves — the button and the device's orientation drive the same single piece of state, so the
+    // two can never disagree about which mode the player is in.
+    LaunchedEffect(isCompactHeight) { isFullscreen = isCompactHeight }
+
+    val toggleFullscreen: () -> Unit = {
+        val entering = !isFullscreen
+        isFullscreen = entering
+        // A 16:9 video "filling" a portrait phone is mostly black bars, so entering from a compact
+        // width also asks for landscape. Tablets and unfolded foldables have the room already and
+        // keep whatever orientation the user chose.
+        lockedLandscape = entering && isCompactWidth
+    }
+
+    // Orientation and the system bars are set and cleared together, in one place, for every exit
+    // path there is: the button, a rotation, system back, or navigating off the Player entirely.
+    FullscreenWindowEffect(isFullscreen = isFullscreen, lockLandscape = lockedLandscape)
+
+    val success = uiState as? PlayerUiState.Success
+    if (success != null && isFullscreen) {
+        // Back leaves fullscreen before it leaves the Player — otherwise the only way out of an
+        // immersive screen would be the button the overlay has just auto-hidden.
+        BackHandler(onBack = toggleFullscreen)
+        FullscreenPlayer(
+            state = success,
             player = player,
-            modifier = modifier
-                .fillMaxSize()
-                .background(StreamlyMediaColors.Letterbox),
+            onToggleFullscreen = toggleFullscreen,
+            modifier = modifier,
         )
     } else {
-        PlayerScaffold(
+        PlayerContent(
             uiState = uiState,
             player = player,
             isExpandedWidth = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded,
-            snackbarHostState = snackbarHostState,
             onEvent = onEvent,
             onBack = onBack,
+            onToggleFullscreen = toggleFullscreen,
             modifier = modifier,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Fullscreen is the same [FloatingPlayerViewport] filling the window, not a separate surface, so the
+ * overlay — scrubber, key-moment ticks, play/pause and the exit button — behaves identically in both
+ * modes and auto-hides the same way.
+ */
 @Composable
-private fun PlayerScaffold(
+private fun FullscreenPlayer(
+    state: PlayerUiState.Success,
+    player: Player,
+    onToggleFullscreen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val progress by rememberPlaybackProgress(player)
+    val controls = rememberPlayerControlsState()
+
+    FloatingPlayerViewport(
+        player = player,
+        progress = progress,
+        chapters = state.video.chapters,
+        onTogglePlay = { if (player.isPlaying) player.pause() else player.play() },
+        onSeekTo = { positionMs ->
+            player.seekTo(positionMs)
+            if (!player.isPlaying) player.play()
+            controls.keepVisible()
+        },
+        onToggleFullscreen = onToggleFullscreen,
+        isFullscreen = true,
+        controls = controls,
+        modifier = modifier
+            .fillMaxSize()
+            .background(StreamlyBrand.Letterbox),
+    )
+}
+
+@Composable
+private fun PlayerContent(
     uiState: PlayerUiState,
     player: Player,
     isExpandedWidth: Boolean,
-    snackbarHostState: SnackbarHostState,
     onEvent: (PlayerUiEvent) -> Unit,
     onBack: () -> Unit,
+    onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.player_back),
-                        )
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        val contentModifier = Modifier
+    Column(
+        modifier = modifier
             .fillMaxSize()
-            .padding(innerPadding)
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding(),
+    ) {
+        PlayerHeader(onBack = onBack)
 
         when (uiState) {
-            PlayerUiState.Loading -> Box(contentModifier, contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            PlayerUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
             PlayerUiState.Empty -> MessageContent(
                 message = stringResource(R.string.player_empty),
                 onRetry = null,
-                modifier = contentModifier,
+                modifier = Modifier.fillMaxSize(),
             )
 
             is PlayerUiState.Error -> MessageContent(
                 message = uiState.message ?: stringResource(R.string.player_error_generic),
                 onRetry = { onEvent(PlayerUiEvent.Retry) },
-                modifier = contentModifier,
+                modifier = Modifier.fillMaxSize(),
             )
 
-            is PlayerUiState.Success -> if (isExpandedWidth) {
-                // Tablets / unfolded foldables: video and the tabbed panel side by side.
-                Row(
-                    modifier = contentModifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    VideoSurface(
-                        player = player,
-                        modifier = Modifier
-                            .weight(0.65f)
-                            .aspectRatio(16f / 9f)
-                            .background(StreamlyMediaColors.Letterbox),
-                    )
-                    PlayerTabs(
-                        state = uiState,
-                        onEvent = onEvent,
-                        modifier = Modifier.weight(0.35f),
-                    )
-                }
-            } else {
-                Column(contentModifier) {
-                    VideoSurface(
-                        player = player,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .background(StreamlyMediaColors.Letterbox),
-                    )
-                    PlayerTabs(state = uiState, onEvent = onEvent)
-                }
-            }
+            is PlayerUiState.Success -> SuccessContent(
+                state = uiState,
+                player = player,
+                isExpandedWidth = isExpandedWidth,
+                onEvent = onEvent,
+                onToggleFullscreen = onToggleFullscreen,
+            )
         }
     }
 }
 
-/**
- * Hosts Media3's [PlayerView] (no Compose player UI in media3 1.4). The view is detached from the
- * shared player on dispose so the next surface — e.g. after rotation — can take it over cleanly.
- */
-@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun VideoSurface(
-    player: Player,
-    modifier: Modifier = Modifier,
-) {
-    AndroidView(
-        factory = { context ->
-            PlayerView(context).apply {
-                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                keepScreenOn = true
-            }
-        },
-        update = { view -> view.player = player },
-        onRelease = { view -> view.player = null },
-        modifier = modifier,
-    )
-}
-
-/**
- * The panel under (or beside) the video: Details and Up Next. The selected tab survives rotation,
- * and resets to Details when the Player is opened for another video — a new entry, new saved state.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PlayerTabs(
+private fun SuccessContent(
     state: PlayerUiState.Success,
+    player: Player,
+    isExpandedWidth: Boolean,
     onEvent: (PlayerUiEvent) -> Unit,
+    onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(PlayerTab.Details) }
+    val progress by rememberPlaybackProgress(player)
 
-    Column(modifier) {
-        PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
-            PlayerTab.entries.forEach { tab ->
-                Tab(
-                    selected = tab == selectedTab,
-                    onClick = { selectedTab = tab },
-                    text = { Text(stringResource(tab.labelRes())) },
-                )
-            }
-        }
+    // Local UI state, per the handoff: these are view preferences, not app state.
+    var selectedTab by rememberSaveable { mutableStateOf(PlayerTab.Overview) }
+    var descriptionExpanded by rememberSaveable { mutableStateOf(false) }
+    var upNextLayout by rememberSaveable { mutableStateOf(UpNextLayout.List) }
 
-        when (selectedTab) {
-            PlayerTab.Details -> VideoDetails(
-                video = state.video,
-                download = state.download,
-                onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
-                modifier = Modifier.padding(16.dp),
-            )
+    // Hoisted so a seek from the Key Moments tab counts as an interaction too: the overlay comes
+    // back and its 3-second countdown restarts, exactly as if the scrubber had been tapped.
+    val controls = rememberPlayerControlsState()
 
-            PlayerTab.UpNext -> UpNextList(
-                videos = state.relatedVideos,
-                onVideoClick = { videoId -> onEvent(PlayerUiEvent.OnRelatedVideoClick(videoId)) },
-            )
-        }
+    val togglePlay: () -> Unit = { if (player.isPlaying) player.pause() else player.play() }
+    val seekToMs: (Long) -> Unit = { positionMs ->
+        player.seekTo(positionMs)
+        if (!player.isPlaying) player.play()
+        controls.keepVisible()
     }
-}
 
-private fun PlayerTab.labelRes(): Int = when (this) {
-    PlayerTab.Details -> R.string.player_tab_details
-    PlayerTab.UpNext -> R.string.player_tab_up_next
-}
-
-@Composable
-private fun VideoDetails(
-    video: Video,
-    download: VideoDownload?,
-    onDownloadClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier.verticalScroll(rememberScrollState())) {
-        Text(text = video.title, style = MaterialTheme.typography.titleLarge)
-        val meta = listOfNotNull(
-            video.category.takeIf { it.isNotBlank() },
-            formatDuration(video.duration).takeIf { video.duration > 0 },
+    val viewport: @Composable (Modifier) -> Unit = { viewportModifier ->
+        FloatingPlayerViewport(
+            player = player,
+            progress = progress,
+            chapters = state.video.chapters,
+            onTogglePlay = togglePlay,
+            onSeekTo = seekToMs,
+            onToggleFullscreen = onToggleFullscreen,
+            controls = controls,
+            modifier = viewportModifier,
         )
-        if (meta.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = meta.joinToString(" · "),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+    }
+
+    val details: @Composable (Modifier) -> Unit = { detailsModifier ->
+        Column(
+            modifier = detailsModifier,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            PlayerActionBar(
+                isLiked = state.isLiked,
+                likeCount = state.likeCount,
+                download = state.download,
+                onLikeClick = { onEvent(PlayerUiEvent.OnLikeClick) },
+                onShareClick = { onEvent(PlayerUiEvent.OnShareClick) },
+                onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
+                modifier = Modifier.padding(horizontal = 14.dp),
+            )
+
+            PlayerTabRow(
+                selected = selectedTab,
+                momentCount = state.video.chapters.size,
+                onSelect = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 14.dp),
+            )
+
+            when (selectedTab) {
+                PlayerTab.Overview -> OverviewTab(
+                    video = state.video,
+                    isSubscribed = state.isSubscribed,
+                    descriptionExpanded = descriptionExpanded,
+                    onToggleDescription = { descriptionExpanded = !descriptionExpanded },
+                    onSubscribeClick = { onEvent(PlayerUiEvent.OnSubscribeClick) },
+                )
+
+                PlayerTab.KeyMoments -> KeyMomentsTab(
+                    chapters = state.video.chapters,
+                    currentPositionSeconds = progress.positionSeconds,
+                    onSeekTo = { seconds -> seekToMs(seconds * 1000) },
+                )
+
+                PlayerTab.UpNext -> UpNextTab(
+                    videos = state.relatedVideos,
+                    layout = upNextLayout,
+                    onToggleLayout = {
+                        upNextLayout =
+                            if (upNextLayout == UpNextLayout.List) UpNextLayout.Carousel else UpNextLayout.List
+                    },
+                    onVideoClick = { videoId -> onEvent(PlayerUiEvent.OnRelatedVideoClick(videoId)) },
+                )
+            }
+
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+
+    if (isExpandedWidth) {
+        // Tablets / unfolded foldables: the viewport stays put while the details scroll beside it.
+        Row(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            viewport(Modifier.weight(0.6f))
+            details(
+                Modifier
+                    .weight(0.4f)
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding(),
             )
         }
-        Spacer(Modifier.height(12.dp))
-        DownloadButton(download = download, onClick = onDownloadClick)
-        if (video.description.isNotBlank()) {
-            Spacer(Modifier.height(12.dp))
-            Text(text = video.description, style = MaterialTheme.typography.bodyMedium)
+    } else {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            viewport(Modifier.padding(horizontal = 14.dp))
+            details(Modifier)
         }
     }
 }
 
-/** Suggestions for what to watch next; empty until they load, or if the fetch failed. */
+/** Collapse chevron, "NOW PLAYING" eyebrow, and a balancing slot where the overflow menu will go. */
 @Composable
-private fun UpNextList(
-    videos: List<Video>,
-    onVideoClick: (videoId: String) -> Unit,
+private fun PlayerHeader(
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (videos.isEmpty()) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = stringResource(R.string.player_up_next_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(24.dp),
-            )
-        }
-        return
-    }
-
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        items(videos, key = { it.id }) { video ->
-            UpNextRow(video = video, onClick = { onVideoClick(video.id) })
-        }
+        HeaderIconButton(
+            icon = StreamlyIcons.ChevronDown,
+            contentDescription = stringResource(R.string.player_back),
+            onClick = onBack,
+        )
+        Text(
+            text = stringResource(R.string.player_now_playing),
+            style = StreamlyType.Eyebrow,
+            color = TextMuted,
+        )
+        // The handoff's overflow menu has no actions in Streamly yet; the space is held so the
+        // eyebrow stays optically centred.
+        Spacer(Modifier.size(42.dp))
     }
 }
 
 @Composable
-private fun UpNextRow(
-    video: Video,
+private fun HeaderIconButton(
+    icon: ImageVector,
+    contentDescription: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        modifier = modifier.fillMaxWidth(),
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(StreamlyShape.IconButton)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box {
-                AsyncImage(
-                    model = video.thumbnailUrl,
-                    contentDescription = null,
-                    placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
-                    error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .width(120.dp)
-                        .aspectRatio(16f / 9f),
-                )
-                if (video.duration > 0) {
-                    Surface(
-                        color = StreamlyMediaColors.Scrim,
-                        contentColor = StreamlyMediaColors.OnMedia,
-                        shape = MaterialTheme.shapes.extraSmall,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp),
-                    ) {
-                        Text(
-                            text = formatDuration(video.duration),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                        )
-                    }
-                }
-            }
-            Column(Modifier.align(Alignment.CenterVertically)) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (video.category.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = video.category,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** One button that reflects and drives the download lifecycle (see PlayerUiEvent.OnDownloadClick). */
-@Composable
-private fun DownloadButton(
-    download: VideoDownload?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val icon = when (download?.status) {
-        null -> StreamlyIcons.Download
-        DownloadStatus.Queued, DownloadStatus.Downloading -> Icons.Filled.Close
-        DownloadStatus.Downloaded -> Icons.Filled.CheckCircle
-        DownloadStatus.Failed -> Icons.Filled.Refresh
-    }
-    val label = when (download?.status) {
-        null -> stringResource(R.string.player_download)
-        DownloadStatus.Queued -> stringResource(R.string.player_download_queued)
-        DownloadStatus.Downloading -> stringResource(R.string.player_download_cancel, download.progressPercent?.roundToInt() ?: 0)
-        DownloadStatus.Downloaded -> stringResource(R.string.player_downloaded)
-        DownloadStatus.Failed -> stringResource(R.string.player_download_failed)
-    }
-    OutlinedButton(onClick = onClick, modifier = modifier) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.size(8.dp))
-        Text(label)
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -496,7 +481,12 @@ private fun MessageContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
         if (onRetry != null) {
             Spacer(Modifier.height(16.dp))
             Button(onClick = onRetry) {
@@ -506,40 +496,91 @@ private fun MessageContent(
     }
 }
 
-/** Hides system bars while in composition; restores them when leaving fullscreen. */
+/**
+ * Owns the two window-level side effects of fullscreen — the system bars and the requested
+ * orientation — so they can never drift apart or be left behind.
+ *
+ * Both are driven by [isFullscreen] and both are undone in `onDispose`, which covers leaving the
+ * Player by any route: the toggle, a rotation, system back, an Up Next swap, or the whole screen
+ * being popped off the back stack. Nothing outside this function touches `requestedOrientation`.
+ */
 @Composable
-private fun ImmersiveMode() {
+private fun FullscreenWindowEffect(
+    isFullscreen: Boolean,
+    lockLandscape: Boolean,
+) {
     val activity = LocalContext.current as? Activity ?: return
-    DisposableEffect(activity) {
+
+    DisposableEffect(activity, isFullscreen, lockLandscape) {
         val controller = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller.hide(WindowInsetsCompat.Type.systemBars())
-        onDispose { controller.show(WindowInsetsCompat.Type.systemBars()) }
+
+        if (isFullscreen) {
+            // Transient bars so a swipe still brings them back without leaving fullscreen.
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            if (lockLandscape) {
+                // USER_LANDSCAPE, not LANDSCAPE: the viewer can still flip between both landscape
+                // directions while fullscreen.
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+            }
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+
+        onDispose {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
     }
 }
 
-@Preview(showBackground = true)
+private fun Context.copyToClipboard(text: String) {
+    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+    clipboard.setPrimaryClip(ClipData.newPlainText(null, text))
+}
+
+private val previewVideo = Video(
+    id = "1",
+    title = "Fjord light at 4 a.m. — a slow drive north of Tromsø",
+    description = "We left Tromsø at 3:40 a.m. to catch the blue hour over Ullsfjorden. No narration, " +
+        "no music — just the road, the engine and the light coming up over the water.",
+    videoUrl = "",
+    thumbnailUrl = "",
+    category = "Travel",
+    duration = 754,
+    isShort = false,
+    channel = Channel("Nordlys Films", "nordlys", "", 412_000),
+    stats = VideoStats(1_200_000, 48_200, 3_104, System.currentTimeMillis() / 1000 - 3 * 86_400),
+    chapters = listOf(
+        Chapter(0, "Departure"),
+        Chapter(96, "Blue hour"),
+        Chapter(221, "Ferry crossing"),
+        Chapter(388, "Reindeer"),
+    ),
+    tags = listOf("nordic", "slowtv", "4k"),
+)
+
+@Preview(showBackground = true, backgroundColor = 0xFF121820, heightDp = 760)
 @Composable
-private fun PlayerTabsPreview() {
-    StreamlyTheme {
-        PlayerTabs(
-            state = PlayerUiState.Success(
-                video = Video(
-                    id = "1",
-                    title = "Big Buck Bunny",
-                    description = "A large rabbit takes revenge on three rodents who torment him.",
-                    videoUrl = "",
-                    thumbnailUrl = "",
-                    category = "Animation",
-                    duration = 635,
-                    isShort = false,
-                ),
-                relatedVideos = listOf(
-                    Video("2", "Tears of Steel", "", "", "", "Sci-Fi", 734, false),
-                    Video("3", "Sintel", "", "", "", "Animation", 888, false),
-                ),
-            ),
-            onEvent = {},
-        )
+private fun PlayerDetailsPreview() {
+    StreamlyTheme(darkTheme = true) {
+        Column(
+            Modifier.background(MaterialTheme.colorScheme.background),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            OverviewTab(
+                video = previewVideo,
+                isSubscribed = false,
+                descriptionExpanded = false,
+                onToggleDescription = {},
+                onSubscribeClick = {},
+            )
+            KeyMomentsTab(
+                chapters = previewVideo.chapters,
+                currentPositionSeconds = 120,
+                onSeekTo = {},
+            )
+        }
     }
 }

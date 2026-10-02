@@ -12,6 +12,8 @@ sealed interface HomeUiState {
         /** `null` means "All". */
         val selectedCategory: String? = null,
         val isRefreshing: Boolean = false,
+        /** IDs of videos available offline — drives the "Offline" tag on each card. */
+        val downloadedIds: Set<String> = emptySet(),
     ) : HomeUiState {
         val visibleVideos: List<Video>
             get() = if (selectedCategory == null) videos else videos.filter { it.category == selectedCategory }

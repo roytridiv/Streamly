@@ -30,6 +30,8 @@ class UserPreferencesRepository @Inject constructor(
         .map { prefs ->
             UserPreferences(
                 favoriteVideoIds = prefs[Keys.FAVORITE_VIDEO_IDS].orEmpty(),
+                savedVideoIds = prefs[Keys.SAVED_VIDEO_IDS].orEmpty(),
+                subscribedChannels = prefs[Keys.SUBSCRIBED_CHANNELS].orEmpty(),
                 playbackQuality = prefs[Keys.PLAYBACK_QUALITY].toEnumOrNull<PlaybackQuality>() ?: PlaybackQuality.Auto,
                 themeMode = prefs[Keys.THEME_MODE].toEnumOrNull<ThemeMode>() ?: ThemeMode.System,
             )
@@ -38,9 +40,16 @@ class UserPreferencesRepository @Inject constructor(
 
     override suspend fun toggleFavorite(videoId: String) {
         dataStore.edit { prefs ->
-            val current = prefs[Keys.FAVORITE_VIDEO_IDS].orEmpty()
-            prefs[Keys.FAVORITE_VIDEO_IDS] = if (videoId in current) current - videoId else current + videoId
+            prefs[Keys.FAVORITE_VIDEO_IDS] = prefs[Keys.FAVORITE_VIDEO_IDS].orEmpty().toggle(videoId)
         }
+    }
+
+    override suspend fun toggleSaved(videoId: String) {
+        dataStore.edit { prefs -> prefs[Keys.SAVED_VIDEO_IDS] = prefs[Keys.SAVED_VIDEO_IDS].orEmpty().toggle(videoId) }
+    }
+
+    override suspend fun toggleSubscription(channelHandle: String) {
+        dataStore.edit { prefs -> prefs[Keys.SUBSCRIBED_CHANNELS] = prefs[Keys.SUBSCRIBED_CHANNELS].orEmpty().toggle(channelHandle) }
     }
 
     override suspend fun setPlaybackQuality(quality: PlaybackQuality) {
@@ -53,10 +62,14 @@ class UserPreferencesRepository @Inject constructor(
 
     private object Keys {
         val FAVORITE_VIDEO_IDS = stringSetPreferencesKey("favorite_video_ids")
+        val SAVED_VIDEO_IDS = stringSetPreferencesKey("saved_video_ids")
+        val SUBSCRIBED_CHANNELS = stringSetPreferencesKey("subscribed_channels")
         val PLAYBACK_QUALITY = stringPreferencesKey("playback_quality")
         val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 }
+
+private fun Set<String>.toggle(value: String): Set<String> = if (value in this) this - value else this + value
 
 private inline fun <reified T : Enum<T>> String?.toEnumOrNull(): T? =
     this?.let { name -> enumValues<T>().firstOrNull { it.name == name } }

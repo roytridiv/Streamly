@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Streamly" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Launch theme: the Android 12+ SplashScreen API draws the bolt mark on the Slate Charcoal
+        ground, so the window never flashes white before Compose takes over. The Compose splash in
+        presentation/splash continues the animation from the same frame.
+    -->
+    <style name="Theme.Streamly.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/slate_charcoal</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Streamly</item>
+    </style>
+
+    <style name="Theme.Streamly" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/slate_charcoal</item>
+    </style>
 </resources>

@@ -33,7 +33,8 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 | 4 | Player Screen & Navigation 3 Routing | Done | `4dd76bb` |
 | 5 | Shorts Feed & Home/Shorts Tabs | Done | `6f6e98f` |
 | 6 | Offline Downloads & DataStore Preferences | Done | `9c15b62` |
-| 7 | Nordic Mint Theme & Tabbed Player | Done (uncommitted) | — |
+| 7 | Nordic Mint Theme & Tabbed Player | Superseded by 8 | — |
+| 8 | Nordic Mint UI Refresh (design handoff) | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -79,3 +80,47 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 - Up Next: `PlayerViewModel.loadRelatedVideos()` reuses `getHomeVideos()`, same-category first, capped at 10, failing silently to an empty tab. `NavGraph.kt` replaces the Player entry rather than stacking one, so back still returns to the originating tab.
 - Shared: `presentation/common/VideoFormat.kt` holds `formatDuration()`, previously private to `HomeScreen`. Home and Shorts overlays switched from `Color.Black`/`Color.White` to `StreamlyMediaColors`. New strings: `player_tab_details`, `player_tab_up_next`, `player_up_next_empty`.
 - Verified: `./gradlew assembleDebug` BUILD SUCCESSFUL, zero errors (only the pre-existing `@StringRes` KT-73255 warnings). Not yet run on device.
+
+### 8. Nordic Mint UI Refresh (design handoff)
+- Prompt: Read `F:\design_handoff_streamly_nordic_mint\README.md` and the `Streamly App v2 -Bolt-.dc.html` prototype; implement the Nordic Mint theme, splash, Home, Player, Shorts, Downloads and bottom nav; install the v2-bolt logo resources. Supersedes workflow 7, whose theme and two-tab Player this replaces.
+- **Deviation from the handoff, on request:** the handoff's hard rule is "UI layer only — no ViewModels, MVI contracts, DataStore, repositories or Media3 setup". Several designed elements had no data behind them (channel, views, upload age, subscribers, like counts, chapters, saved/followed state, device storage, downloaded resolution). Asked, and was told to lift the rule and extend the data layer too. The Media3 *setup* is still untouched: the shared `ExoPlayer`, `ShortsPlayerPool`, `DownloadManager`, cache and source factories are unchanged; the UI only calls `play`/`pause`/`seekTo` on handles it is already given.
+
+**Theme & brand**
+- `core/theme/Color.kt` — handoff tokens (`SlateCharcoal`, `SoftCharcoal`, `SurfaceRaised`, `SageMint`, `MintText`, `MintTint`, `OnMint`, text ramp, `StorageOther`) plus `StreamlyBrand` for tokens with no Material slot and the fixed on-video colours. Replaces the old `StreamlyMediaColors`.
+- `core/theme/Shape.kt` (new) — `Card` 16, `Viewport` 12, `SmallThumbnail` 12, `ActionButton` 14, `DurationBadge` 7, `IconButton` 12, `FrostedTile` 18, and `asymmetricPill(height)` scaling the 17/6 ratio.
+- `core/theme/Type.kt` — handoff scale (24/19/15/13.5/12.5/11), Medium headings, SemiBold badges only; `StreamlyType` for mono timestamps/durations/eyebrows and the wordmark. Resolves to the platform sans/mono — drop Inter and JetBrains Mono into `res/font` and repoint `InterFamily`/`MonoFamily` for an exact match.
+- `core/theme/Theme.kt` — dark `ColorScheme` wired to the tokens (`MintTint`/`MintText` → `primaryContainer`/`onPrimaryContainer`, `SoftCharcoal` → `surfaceContainer`); dynamic colour off; a light scheme kept so the DataStore `ThemeMode` preference still works.
+- `core/theme/StreamlyLogo.kt` (new) — the mark drawn in Compose via `PathParser` from the same path data as the drawable, because the splash animates the play mark and the bolt separately. `StreamlyLogoTile` (with `outlined` for the Downloads empty state) and `StreamlyBoltGlyph`.
+- `core/theme/StreamlyIcons.kt` — the handoff's Phosphor set built from the prototype's path data, avoiding material-icons-extended.
+- Assets: `res/drawable/ic_streamly_logo.xml`, `ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml`, `mipmap-anydpi-v26/ic_launcher(_round).xml`, `values/colors.xml` (`ic_launcher_background` #1E2630), `values/themes.xml` (`Theme.Streamly.Starting` on the SplashScreen API), `core-splashscreen:1.0.1`. The green template `drawable/ic_launcher_background.xml` was deleted.
+
+**Data layer (the lifted rule)**
+- `domain/model/Video.kt` — added `Channel`, `VideoStats`, `Chapter`, `soundLabel`, `tags`, all defaulted.
+- `domain/model/VideoDownload.kt` — added `videoHeight`. `domain/model/UserPreferences.kt` + `PreferencesRepository` + `data/local/datastore/UserPreferencesRepository.kt` — added `savedVideoIds`, `subscribedChannels`, `toggleSaved`, `toggleSubscription`.
+- `data/remote/dto/VideoDto.kt`, `data/mapper/VideoMapper.kt` — `ChannelDto`, `ChapterDto` and the new fields; chapters sorted ascending on the way in.
+- `data/repository/VideoRepositoryImpl.kt` — the fallback catalogue now carries channels, stats and chapters.
+- `core/media/DownloadTracker.kt` — `DownloadMetadata` persists channel/stats/chapters/tags so downloads keep their metadata offline, plus `selectedVideoHeight()` reading the rendition actually written to the cache.
+- `core/media/NowPlayingStore.kt` (new) — mirrors the shared player for the mini-player; polls position at 2Hz only while playing. `PlayerViewModel` registers each video with it.
+- `core/storage/DeviceStorage.kt` (new) — real `StatFs` figures for the Downloads usage card, instead of the prototype's mocked 64 GB.
+
+**Shared UI**
+- `presentation/common/VideoFormat.kt` — `formatDuration`, `formatCount` (1.2M), `formatRelativeAge` (3 days ago), `formatBytes`.
+- `presentation/common/PlaybackProgress.kt` (new) — `rememberPlaybackProgress(player)`, the one place that polls position; ticks only while playing.
+- `presentation/components/StreamlyToast.kt` (new) — the handoff's SurfaceRaised pill with a mint edge, 1.8s.
+
+**Screens**
+- `presentation/splash/StreamlySplash.kt` (new) — radial glow, tile 0.82→1 (700ms, `cubic-bezier(.2,.8,.2,1)`), bolt strike from (5,−14) at 500ms, flash ring at 620ms, wordmark rise at 900ms, exit 2.1s. `MainActivity` calls `installSplashScreen()` so the system icon and this are one shot; `rememberSaveable` stops a rotation replaying it.
+- `presentation/navigation/components/StreamlyBottomBar.kt` (new) — 66dp bar, asymmetric mint pill, bolt glyph for Shorts, mint download badge; `StreamlyNavRail` keeps medium/expanded widths working. `MiniPlayer.kt` (new) — 58dp, mint edge, 2dp progress line. `NavGraph.kt` rewired; `MainViewModel` now also owns `nowPlaying` and `activeDownloadCount` (chrome, not screen content).
+- `presentation/home/components/` (new) — `HomeTopBar.kt` (30dp tile + wordmark; the handoff's Search/Bell slots carry Refresh and Settings, the actions Streamly actually has), `CategoryChips.kt`, `VideoCard.kt` (mint duration badge, frosted "Offline" tag, avatar, meta line). `HomeScreen.kt` rebuilt; `HomeUiState` gained `downloadedIds`.
+- `presentation/player/components/` (new) — `FloatingPlayerViewport.kt` (12dp pane, mint glow, watermark, 54dp frosted play, 3dp scrubber with chapter ticks and the "0:42 · Blue hour" label), `PlayerActionBar.kt` (Like/Share/Download, the download button's three live states with a progress ring and left-to-right MintTint fill), `PlayerDetailTabs.kt` (sliding indicator, Overview with Subscribe and the expandable description, Key Moments chips, Up Next list ↔ carousel). `PlayerScreen.kt` rebuilt; `PlayerUiState`/`Event` gained liked, subscribed, share and the `PlayerTab`/`UpNextLayout` enums. Seeking and play/pause go straight to the `Player` handle the screen already receives — position is not pumped through state.
+- `presentation/shorts/components/ShortsOverlays.kt` (new) — glowing bolt header with "1 / 4", 50dp frosted right rail, bottom-left overlay with Follow and sound row, 2dp mint progress bar. `ShortsScreen.kt` rebuilt; `ShortsUiState`/`Event` gained `savedIds`, `followedChannels`, `OnSaveClick`, `OnFollowClick`.
+- `presentation/downloads/components/` (new) — `StorageUsageCard.kt` (segmented bar with a mint glow, legend, plus `FadedDivider`), `DownloadRow.kt` (118dp thumbnail, Offline Ready tag, pulsing % over a 3dp bar, "612 MB · 1080p"). `DownloadsScreen.kt` rebuilt with the outlined-logo empty state; `DownloadsUiState` gained `storage`, `readyCount`, `savingCount`.
+
+**Known substitutions** (where the prototype cannot be matched literally on Android)
+- Frosted surfaces are translucent fills, not backdrop blurs: `Modifier.blur` is API 31+ and does not sample what is behind it. The handoff's own opacity values are used.
+- `material3` 1.3.0's `IconButton` is circle-only (`shape` lands in 1.4), so 12dp-radius icon buttons are clipped clickable boxes.
+- The Shorts rail's Comments entry shows the count but is not clickable — Streamly has no comments screen, so it is a tile rather than a dead button. The Player header's overflow slot is likewise held empty.
+- Verified: `./gradlew clean assembleDebug` BUILD SUCCESSFUL, zero errors. The only warnings are the pre-existing KT-73255 annotation-target class. **Not yet run on device.**
+- Follow-up fix: orientation lock on fullscreen exit. The toggle gated `requestedOrientation` on `isCompactWidth` in both directions, but a phone in landscape is roughly 800x360dp and so reads as Medium width, not Compact: the lock applied on the way in and the unlock was unreachable on the way out, stranding the whole app in landscape. `PlayerScreen.kt` now saves whether it locked (`lockedLandscape`) instead of re-deriving it, and a single `FullscreenWindowEffect` owns both the system bars and the orientation: set on enter, cleared on exit, and cleared again in `onDispose` so leaving the Player by any route (button, rotation, back, Up Next swap, pop) cannot leave the app locked or immersive. `ImmersiveMode` and the `requestLandscape` helper are folded into it; nothing else touches `requestedOrientation`.
+- Follow-up fix: a fullscreen toggle. `StreamlyIcons` gained `Fullscreen`/`FullscreenExit`; the button sits at the end of the scrubber label row in `FloatingPlayerViewport.kt`, so it fades with the rest of the overlay. The viewport takes an `isFullscreen` flag that drops the floating treatment (rounded clip, mint border, ambient glow) for a pane that fills the window, and `PlayerScreen.kt` now owns `isFullscreen` as saveable state: the old `FullscreenSurface` with Media3 chrome is gone, so the overlay and its auto-hide behave identically in both modes. Rotating a phone into landscape still enters fullscreen -- the button and the device drive the same state. Entering on a compact width also requests `SCREEN_ORIENTATION_USER_LANDSCAPE` (a 16:9 video in portrait is mostly letterbox); exiting hands orientation back with `UNSPECIFIED`. `BackHandler` leaves fullscreen before leaving the Player.
+- Follow-up fix: the overlay controls were composed unconditionally, so they never left the screen once playback began. `presentation/player/components/PlayerControlsState.kt` (new) holds their visibility plus an `interactionCount` that restarts a 3s countdown; `FloatingPlayerViewport.kt` wraps the centre button and scrubber in `AnimatedVisibility` (removed from composition, not faded, so a hidden overlay cannot swallow taps), toggles on a tap anywhere on the surface, and keeps them up while paused. The state is hoisted into `PlayerScreen.kt` so a Key Moments seek resets the countdown too.

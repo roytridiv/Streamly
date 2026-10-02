@@ -3,7 +3,10 @@ package com.tridivroy.streamly.data.repository
 import android.util.Log
 import com.tridivroy.streamly.data.mapper.toDomain
 import com.tridivroy.streamly.data.remote.dto.VideoDto
+import com.tridivroy.streamly.domain.model.Channel
+import com.tridivroy.streamly.domain.model.Chapter
 import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.domain.repository.VideoRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -68,56 +71,105 @@ class VideoRepositoryImpl @Inject constructor(
             if (portrait) "https://picsum.photos/seed/$seed/360/640"
             else "https://picsum.photos/seed/$seed/640/360"
 
+        fun avatar(seed: String) = "https://picsum.photos/seed/$seed-avatar/96/96"
+
+        /** Upload time [daysAgo] days before class init, for the "3 days ago" label. */
+        fun daysAgo(daysAgo: Long): Long = System.currentTimeMillis() / 1000 - daysAgo * 86_400
+
+        fun chapters(vararg pairs: Pair<Long, String>): List<Chapter> =
+            pairs.map { (position, label) -> Chapter(position, label) }
+
+        val NORDLYS = Channel("Nordlys Films", "nordlys", avatar("nordlys"), 412_000)
+        val SLOW_WORKSHOP = Channel("Slow Workshop", "slowworkshop", avatar("slowworkshop"), 198_000)
+        val POLAR_TAPES = Channel("Polar Tapes", "polartapes", avatar("polartapes"), 1_120_000)
+        val INTERFACE_CLUB = Channel("Interface Club", "interfaceclub", avatar("interfaceclub"), 86_000)
+        val KESTREL = Channel("Kestrel Plays", "kestrel", avatar("kestrel"), 540_000)
+
         val FALLBACK_HOME = listOf(
             Video(
                 id = "fallback-bbb",
                 title = "Big Buck Bunny",
-                description = "Blender Foundation open movie about a giant rabbit and three bullying rodents.",
+                description = "Blender Foundation open movie about a giant rabbit and three bullying rodents. " +
+                    "Rendered entirely in Blender and released under Creative Commons; the short is still one of " +
+                    "the most widely used reference clips for video pipelines.",
                 videoUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
                 thumbnailUrl = thumbnail("bbb"),
                 category = "Animation",
                 duration = 635,
                 isShort = false,
+                channel = NORDLYS,
+                stats = VideoStats(1_200_000, 48_200, 3_104, daysAgo(3)),
+                chapters = chapters(
+                    0L to "Opening",
+                    96L to "The meadow",
+                    221L to "First trap",
+                    388L to "The chase",
+                    530L to "Payback",
+                ),
+                tags = listOf("animation", "blender", "openmovie"),
             ),
             Video(
                 id = "fallback-tos",
                 title = "Tears of Steel",
-                description = "Blender Foundation sci-fi short film set in a dystopian Amsterdam.",
+                description = "Blender Foundation sci-fi short film set in a dystopian Amsterdam, shot on live " +
+                    "action plates with fully computer-generated robots composited over them.",
                 videoUrl = "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
                 thumbnailUrl = thumbnail("tos"),
                 category = "Sci-Fi",
                 duration = 734,
                 isShort = false,
+                channel = POLAR_TAPES,
+                stats = VideoStats(640_000, 21_400, 1_890, daysAgo(7)),
+                chapters = chapters(
+                    0L to "The bridge",
+                    180L to "Flashback",
+                    520L to "The machines",
+                ),
+                tags = listOf("scifi", "vfx"),
             ),
             Video(
                 id = "fallback-bipbop",
                 title = "Apple BipBop (fMP4)",
-                description = "Apple's advanced HLS test stream with multiple bitrates.",
+                description = "Apple's advanced HLS test stream with multiple bitrates, used to verify adaptive " +
+                    "switching and fragmented MP4 playback.",
                 videoUrl = "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
                 thumbnailUrl = thumbnail("bipbop"),
                 category = "Test",
                 duration = 600,
                 isShort = false,
+                channel = INTERFACE_CLUB,
+                stats = VideoStats(210_000, 9_800, 412, daysAgo(5)),
+                chapters = chapters(0L to "Bars", 140L to "Bitrate shift", 410L to "Audio test"),
+                tags = listOf("hls", "testing"),
             ),
             Video(
                 id = "fallback-mux-test",
                 title = "Mux Test Stream",
-                description = "Mux public HLS test stream.",
+                description = "Mux public HLS test stream, a steady single-rendition feed for smoke-testing players.",
                 videoUrl = "https://test-streams.mux.dev/test_001/stream.m3u8",
                 thumbnailUrl = thumbnail("muxtest"),
                 category = "Test",
                 duration = 510,
                 isShort = false,
+                channel = KESTREL,
+                stats = VideoStats(890_000, 40_100, 2_210, daysAgo(4)),
+                chapters = chapters(0L to "Start", 310L to "Mid-roll"),
+                tags = listOf("hls"),
             ),
             Video(
                 id = "fallback-dark-truths",
                 title = "Big Buck Bunny: Dark Truths",
-                description = "Shaka Player demo stream.",
+                description = "Shaka Player demo stream — a re-cut of the Blender short used to exercise " +
+                    "multi-period manifests.",
                 videoUrl = "https://storage.googleapis.com/shaka-demo-assets/bbb-dark-truths-hls/hls.m3u8",
                 thumbnailUrl = thumbnail("darktruths"),
                 category = "Animation",
                 duration = 372,
                 isShort = false,
+                channel = SLOW_WORKSHOP,
+                stats = VideoStats(402_000, 15_200, 980, daysAgo(31)),
+                chapters = chapters(0L to "Cold open", 200L to "The turn"),
+                tags = listOf("animation", "shaka"),
             ),
         )
 
@@ -131,6 +183,10 @@ class VideoRepositoryImpl @Inject constructor(
                 category = "Drama",
                 duration = 60,
                 isShort = true,
+                channel = NORDLYS,
+                stats = VideoStats(84_200, 84_200, 1_204, daysAgo(2)),
+                soundLabel = "Original sound · Nordlys",
+                tags = listOf("short"),
             ),
             Video(
                 id = "fallback-short-pts-shift",
@@ -141,6 +197,10 @@ class VideoRepositoryImpl @Inject constructor(
                 category = "Test",
                 duration = 165,
                 isShort = true,
+                channel = POLAR_TAPES,
+                stats = VideoStats(31_900, 31_900, 388, daysAgo(6)),
+                soundLabel = "Tape Pad #4 · Polar Tapes",
+                tags = listOf("short", "test"),
             ),
         )
     }

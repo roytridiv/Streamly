@@ -2,6 +2,8 @@ package com.tridivroy.streamly.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tridivroy.streamly.domain.model.DownloadStatus
+import com.tridivroy.streamly.domain.repository.DownloadRepository
 import com.tridivroy.streamly.domain.repository.VideoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -10,6 +12,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,6 +22,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val videoRepository: VideoRepository,
+    private val downloadRepository: DownloadRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -30,6 +35,19 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadVideos()
+        observeDownloads()
+    }
+
+    /** Keeps the "Offline" tag on each card in step with the download list. */
+    private fun observeDownloads() {
+        viewModelScope.launch {
+            downloadRepository.downloads
+                .map { downloads -> downloads.filter { it.status == DownloadStatus.Downloaded }.map { it.video.id }.toSet() }
+                .distinctUntilChanged()
+                .collect { ids ->
+                    _uiState.update { state -> if (state is HomeUiState.Success) state.copy(downloadedIds = ids) else state }
+                }
+        }
     }
 
     fun onEvent(event: HomeUiEvent) {
@@ -60,6 +78,7 @@ class HomeViewModel @Inject constructor(
                         videos = videos,
                         categories = categories,
                         selectedCategory = previous?.selectedCategory?.takeIf { it in categories },
+                        downloadedIds = previous?.downloadedIds.orEmpty(),
                     )
                 },
                 onFailure = { HomeUiState.Error(it.message) },

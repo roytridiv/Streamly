@@ -2,6 +2,7 @@ package com.tridivroy.streamly.presentation.downloads
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tridivroy.streamly.core.storage.DeviceStorage
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.repository.DownloadRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
+    private val deviceStorage: DeviceStorage,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DownloadsUiState>(DownloadsUiState.Loading)
@@ -56,7 +58,15 @@ class DownloadsViewModel @Inject constructor(
             downloadRepository.downloads
                 .catch { _uiState.value = DownloadsUiState.Error(it.message) }
                 .collect { downloads ->
-                    _uiState.value = if (downloads.isEmpty()) DownloadsUiState.Empty else DownloadsUiState.Success(downloads)
+                    _uiState.value = if (downloads.isEmpty()) {
+                        DownloadsUiState.Empty
+                    } else {
+                        // Re-read the volume on every change: a finished or deleted download moves it.
+                        DownloadsUiState.Success(
+                            downloads = downloads,
+                            storage = deviceStorage.read(downloads.sumOf { it.bytesDownloaded }),
+                        )
+                    }
                 }
         }
     }

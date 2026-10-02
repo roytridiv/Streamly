@@ -7,6 +7,11 @@ sealed interface PlayerUiEvent {
     data object OnDownloadClick : PlayerUiEvent
     /** An "Up Next" suggestion was tapped. */
     data class OnRelatedVideoClick(val videoId: String) : PlayerUiEvent
+    /** Optimistic toggle, persisted as a favourite. */
+    data object OnLikeClick : PlayerUiEvent
+    /** Optimistic toggle, persisted against the channel handle. */
+    data object OnSubscribeClick : PlayerUiEvent
+    data object OnShareClick : PlayerUiEvent
 }
 
 /** One-off actions sent from [PlayerViewModel] to [PlayerScreen], consumed exactly once. */
@@ -14,4 +19,6 @@ sealed interface PlayerUiEffect {
     data class DownloadFailed(val message: String?) : PlayerUiEffect
     /** Replace this Player entry with [videoId]'s, so Up Next doesn't stack Player screens. */
     data class NavigateToVideo(val videoId: String) : PlayerUiEffect
+    /** Copy the video's link and confirm with the "Link copied" toast. */
+    data class CopyLink(val url: String) : PlayerUiEffect
 }

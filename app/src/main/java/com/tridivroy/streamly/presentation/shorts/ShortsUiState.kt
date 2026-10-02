@@ -16,6 +16,10 @@ sealed interface ShortsUiState {
         val isPaused: Boolean = false,
         /** Favourited video IDs, persisted in DataStore. */
         val likedIds: Set<String> = emptySet(),
+        /** Saved video IDs, persisted in DataStore. The rail's Save action, separate from Like. */
+        val savedIds: Set<String> = emptySet(),
+        /** Channel handles the user follows, persisted in DataStore. Drives the Follow pill. */
+        val followedChannels: Set<String> = emptySet(),
     ) : ShortsUiState
 
     data object Empty : ShortsUiState

@@ -7,48 +7,38 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,12 +53,15 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
-import com.tridivroy.streamly.core.theme.StreamlyMediaColors
+import com.tridivroy.streamly.core.theme.StreamlyBrand
+import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.domain.model.Video
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-
-private const val PROGRESS_POLL_MS = 200L
+import com.tridivroy.streamly.presentation.common.rememberPlaybackProgress
+import com.tridivroy.streamly.presentation.shorts.components.ShortsAction
+import com.tridivroy.streamly.presentation.shorts.components.ShortsActionRail
+import com.tridivroy.streamly.presentation.shorts.components.ShortsHeader
+import com.tridivroy.streamly.presentation.shorts.components.ShortsOverlay
+import com.tridivroy.streamly.presentation.shorts.components.ShortsProgressBar
 
 /** Stateful entry point: wires [ShortsViewModel] to the stateless [ShortsScreen]. */
 @Composable
@@ -118,11 +111,11 @@ fun ShortsScreen(
 ) {
     val screenModifier = modifier
         .fillMaxSize()
-        .background(StreamlyMediaColors.Letterbox)
+        .background(StreamlyBrand.Letterbox)
 
     when (uiState) {
         ShortsUiState.Loading -> Box(screenModifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = StreamlyMediaColors.OnMedia)
+            CircularProgressIndicator(color = StreamlyBrand.OnMedia)
         }
 
         ShortsUiState.Empty -> MessageContent(
@@ -164,21 +157,35 @@ private fun ShortsPager(
         }
     }
 
-    VerticalPager(
-        state = pagerState,
-        modifier = modifier,
-        key = { index -> state.videos[index].id },
-    ) { page ->
-        val video = state.videos[page]
-        val isActive = page == state.activeIndex
-        ShortPage(
-            video = video,
-            // Only the active and preloaded pages have a player; others show their thumbnail.
-            player = if (isActive || page == state.preloadIndex) playerFor(page) else null,
-            isActive = isActive,
-            isPaused = isActive && state.isPaused,
-            isLiked = video.id in state.likedIds,
-            onEvent = onEvent,
+    Box(modifier) {
+        VerticalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            key = { index -> state.videos[index].id },
+        ) { page ->
+            val video = state.videos[page]
+            val isActive = page == state.activeIndex
+            ShortPage(
+                video = video,
+                // Only the active and preloaded pages have a player; others show their thumbnail.
+                player = if (isActive || page == state.preloadIndex) playerFor(page) else null,
+                isActive = isActive,
+                isPaused = isActive && state.isPaused,
+                isLiked = video.id in state.likedIds,
+                isSaved = video.id in state.savedIds,
+                isFollowing = video.channel.handle.takeIf { it.isNotBlank() } in state.followedChannels,
+                onEvent = onEvent,
+            )
+        }
+
+        // Header and position sit above the pager so they do not travel with the pages.
+        ShortsHeader(
+            pageNumber = state.activeIndex + 1,
+            pageCount = state.videos.size,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, top = 10.dp),
         )
     }
 }
@@ -190,9 +197,13 @@ private fun ShortPage(
     isActive: Boolean,
     isPaused: Boolean,
     isLiked: Boolean,
+    isSaved: Boolean,
+    isFollowing: Boolean,
     onEvent: (ShortsUiEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val progress by rememberPlaybackProgress(if (isActive) player else null)
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -213,43 +224,94 @@ private fun ShortPage(
             ShortVideoSurface(player = player, modifier = Modifier.fillMaxSize())
         }
 
-        // Scrim so white overlay text stays readable on bright frames.
+        // Scrim so overlay text stays readable on bright frames.
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.4f)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, StreamlyMediaColors.Scrim))),
+                .fillMaxHeight(0.45f)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, StreamlyBrand.Scrim))),
         )
 
-        Row(
+        ShortsActionRail(
+            actions = listOf(
+                ShortsAction(
+                    icon = if (isLiked) StreamlyIcons.HeartFilled else StreamlyIcons.Heart,
+                    contentDescription = stringResource(if (isLiked) R.string.shorts_unlike else R.string.shorts_like),
+                    count = video.stats.likeCount + if (isLiked) 1 else 0,
+                    active = isLiked,
+                    onClick = { onEvent(ShortsUiEvent.OnLikeClick(video.id)) },
+                ),
+                // Streamly has no comments screen, so this shows the count without claiming to open
+                // anything — a tile, not a button. Give it an onClick once there is somewhere to go.
+                ShortsAction(
+                    icon = StreamlyIcons.Comment,
+                    contentDescription = stringResource(R.string.shorts_comments),
+                    count = video.stats.commentCount,
+                ),
+                ShortsAction(
+                    icon = StreamlyIcons.Share,
+                    contentDescription = stringResource(R.string.shorts_share),
+                    count = 0,
+                    onClick = { onEvent(ShortsUiEvent.OnShareClick(video)) },
+                ),
+                ShortsAction(
+                    icon = if (isSaved) StreamlyIcons.SaveFilled else StreamlyIcons.Save,
+                    contentDescription = stringResource(if (isSaved) R.string.shorts_unsave else R.string.shorts_save),
+                    count = 0,
+                    active = isSaved,
+                    onClick = { onEvent(ShortsUiEvent.OnSaveClick(video.id)) },
+                ),
+            ),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 12.dp, bottom = RAIL_BOTTOM_PADDING),
+        )
+
+        ShortsOverlay(
+            video = video,
+            isFollowing = isFollowing,
+            onFollowClick = { onEvent(ShortsUiEvent.OnFollowClick(video.channel.handle)) },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 80.dp, bottom = OVERLAY_BOTTOM_PADDING),
+        )
+
+        ShortsProgressBar(
+            fraction = progress.fraction,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 8.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            VideoMetadata(video = video, modifier = Modifier.weight(1f))
-            ActionColumn(
-                isLiked = isLiked,
-                onLike = { onEvent(ShortsUiEvent.OnLikeClick(video.id)) },
-                onShare = { onEvent(ShortsUiEvent.OnShareClick(video)) },
-            )
-        }
+                .padding(horizontal = 16.dp)
+                .padding(bottom = PROGRESS_BOTTOM_PADDING),
+        )
 
-        if (isActive && player != null) {
-            PlaybackIndicators(player = player, modifier = Modifier.fillMaxSize())
+        if (isActive && progress.isBuffering) {
+            CircularProgressIndicator(
+                color = StreamlyBrand.OnMedia,
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
 
         if (isPaused) {
-            Icon(
-                imageVector = Icons.Filled.PlayArrow,
-                contentDescription = stringResource(R.string.shorts_play),
-                tint = StreamlyMediaColors.OnMediaVariant,
-                modifier = Modifier
+            Box(
+                Modifier
                     .align(Alignment.Center)
-                    .size(72.dp),
-            )
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(StreamlyBrand.FrostedSurface),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = StreamlyIcons.Play,
+                    contentDescription = stringResource(R.string.shorts_play),
+                    tint = StreamlyBrand.OnMedia,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
         }
     }
 }
@@ -280,118 +342,6 @@ private fun ShortVideoSurface(
 }
 
 @Composable
-private fun VideoMetadata(
-    video: Video,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier.padding(end = 8.dp)) {
-        Text(
-            text = video.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = StreamlyMediaColors.OnMedia,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (video.category.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "#${video.category}",
-                style = MaterialTheme.typography.labelLarge,
-                color = StreamlyMediaColors.OnMedia,
-            )
-        }
-        if (video.description.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = video.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = StreamlyMediaColors.OnMediaVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ActionColumn(
-    isLiked: Boolean,
-    onLike: () -> Unit,
-    onShare: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        IconButton(onClick = onLike) {
-            Icon(
-                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                contentDescription = stringResource(if (isLiked) R.string.shorts_unlike else R.string.shorts_like),
-                tint = if (isLiked) StreamlyMediaColors.Like else StreamlyMediaColors.OnMedia,
-                modifier = Modifier.size(32.dp),
-            )
-        }
-        IconButton(onClick = onShare) {
-            Icon(
-                imageVector = Icons.Filled.Share,
-                contentDescription = stringResource(R.string.shorts_share),
-                tint = StreamlyMediaColors.OnMedia,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-    }
-}
-
-/**
- * Buffering spinner and a thin playback progress bar for the active page. Progress is polled
- * (Player has no position callback) and read inside the indicator's lambda, so each tick only
- * redraws the bar instead of recomposing the page.
- */
-@Composable
-private fun PlaybackIndicators(
-    player: Player,
-    modifier: Modifier = Modifier,
-) {
-    var progress by remember(player) { mutableFloatStateOf(0f) }
-    var isBuffering by remember(player) { mutableStateOf(player.playbackState == Player.STATE_BUFFERING) }
-
-    DisposableEffect(player) {
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                isBuffering = playbackState == Player.STATE_BUFFERING
-            }
-        }
-        player.addListener(listener)
-        onDispose { player.removeListener(listener) }
-    }
-
-    LaunchedEffect(player) {
-        while (isActive) {
-            val duration = player.duration
-            progress = if (duration > 0) (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
-            delay(PROGRESS_POLL_MS)
-        }
-    }
-
-    Box(modifier) {
-        if (isBuffering) {
-            CircularProgressIndicator(color = StreamlyMediaColors.OnMedia, modifier = Modifier.align(Alignment.Center))
-        }
-        LinearProgressIndicator(
-            progress = { progress },
-            color = StreamlyMediaColors.OnMedia,
-            trackColor = StreamlyMediaColors.OnMediaVariant.copy(alpha = 0.25f),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(2.dp),
-        )
-    }
-}
-
-@Composable
 private fun MessageContent(
     message: String,
     onRetry: () -> Unit,
@@ -404,10 +354,20 @@ private fun MessageContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = message, color = StreamlyMediaColors.OnMedia, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(
+            text = message,
+            color = StreamlyBrand.OnMedia,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text(stringResource(R.string.shorts_retry))
         }
     }
 }
+
+/** Keeps the rail, overlay and progress bar clear of the bottom nav, as the prototype does. */
+private val RAIL_BOTTOM_PADDING = 44.dp
+private val OVERLAY_BOTTOM_PADDING = 34.dp
+private val PROGRESS_BOTTOM_PADDING = 18.dp

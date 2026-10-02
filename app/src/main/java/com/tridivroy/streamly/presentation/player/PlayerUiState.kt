@@ -13,7 +13,17 @@ sealed interface PlayerUiState {
         val download: VideoDownload? = null,
         /** "Up Next" suggestions. Empty while they load, or if they could not be fetched. */
         val relatedVideos: List<Video> = emptyList(),
-    ) : PlayerUiState
+        /** Persisted as a favourite. Drives the Like button's fill and count. */
+        val isLiked: Boolean = false,
+        /** The user subscribes to this video's channel. */
+        val isSubscribed: Boolean = false,
+    ) : PlayerUiState {
+        /**
+         * Like count with the user's own optimistic like folded in, so tapping Like moves the number
+         * without waiting for a server that has no such endpoint.
+         */
+        val likeCount: Long get() = video.stats.likeCount + if (isLiked) 1 else 0
+    }
 
     /** The video exists but has no playable stream URL. */
     data object Empty : PlayerUiState
@@ -24,6 +34,13 @@ sealed interface PlayerUiState {
 
 /** The tabs shown under (or beside) the video surface. */
 enum class PlayerTab {
-    Details,
+    Overview,
+    KeyMoments,
     UpNext,
+}
+
+/** Up Next's two layouts. Purely a UI preference, remembered per Player entry. */
+enum class UpNextLayout {
+    List,
+    Carousel,
 }

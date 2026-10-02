@@ -286,3 +286,50 @@ have you added the last prompt in the prompt history file ?
 ````text
 keep it in mind that when ever I will be giving you any prompt for code fix implemntation cahnge or anything related to code base add that in the prompt history file
 ````
+
+## 2026-10-02 12:57:20 BST · session `196cf442`
+
+````text
+Read F:\design_handoff_streamly_nordic_mint\README.md and open the prototype HTML for reference. Implement the Nordic Mint theme, splash, Home, Player, Shorts, Downloads and bottom nav in our Jetpack Compose code. UI layer only — do not change ViewModels, MVI contracts, DataStore or Media3/ExoPlayer. Install the v2-bolt logo resources. Start with the theme, show me a plan, then do one screen at a time. Update AGENTS.md with the files you changed.
+````
+
+## 2026-10-02 14:03:11 BST · session `196cf442`
+
+````text
+Carry on through all three steps, build, and verify. We will review on device once everything is completed.
+````
+
+## 2026-10-02 17:18:55 BST · session `196cf442`
+
+````text
+Fix video player control overlay auto-hide behavior in FloatingPlayerViewport.kt / PlayerScreen.kt:
+
+ Issue: The video player overlay controls (play/pause overlay and the bottom scrubber / progress bar) remain permanently visible on screen after interaction instead of auto-hiding.Like I have played a video I am seeing the all the control there along the video playing 
+
+ Requirement:
+   -  auto-hide timer mechanism (3-second timeout) for player controls.
+   - When the user taps the video viewport, toggle control visibility.
+   - If controls become visible and the video is playing, automatically hide controls and the scrubber bar after 3 seconds of inactivity.
+   - When the video is paused, keep controls visible until playback resumes or explicit user hide tap.
+   - Ensure progress seeking / scrubbing resets the auto-hide timer.
+````
+
+## 2026-10-02 17:31:59 BST · session `196cf442`
+
+````text
+Issue : there is no full screen icon on the video player overlay 
+Requirement : Place a fun screen icon in the video player overlay , so that the user can switch to full screen mode and toggle back while palying a video , keep the visibility behaviour as the other controls of the video overlay
+````
+
+## 2026-10-02 18:03:30 BST · session `196cf442`
+
+````text
+Fix orientation lock bug in PlayerScreen.kt when exiting fullscreen mode:
+
+Issue: When exiting video fullscreen mode, the screen remains locked in landscape orientation instead of returning to portrait or adapting to device sensor orientation.
+
+Fix Requirements:
+   - Ensure that exiting fullscreen explicitly resets Activity requestedOrientation back to ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED (or SCREEN_ORIENTATION_PORTRAIT).
+   - In DisposableEffect (onDispose) of PlayerScreen, force reset orientation to SCREEN_ORIENTATION_UNSPECIFIED so navigating away from the player never leaves the app stuck in landscape mode.
+   - Cleanly handle system UI visibility (Status bar and Navigation bar) when toggling in and out of fullscreen.
+````
