@@ -10,14 +10,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,15 +30,20 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
@@ -43,14 +52,21 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -65,11 +81,15 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
 import com.tridivroy.streamly.core.theme.StreamlyIcons
+import com.tridivroy.streamly.core.theme.StreamlyMediaColors
+import com.tridivroy.streamly.core.theme.StreamlyTheme
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoDownload
+import com.tridivroy.streamly.presentation.common.formatDuration
 import kotlin.math.roundToInt
 
 /** Stateful entry point: wires [PlayerViewModel] to the stateless [PlayerScreen]. */
@@ -78,6 +98,7 @@ fun PlayerRoute(
     videoId: String,
     windowSizeClass: WindowSizeClass,
     onBack: () -> Unit,
+    onNavigateToVideo: (videoId: String) -> Unit,
     viewModel: PlayerViewModel = hiltViewModel<PlayerViewModel, PlayerViewModel.Factory>(
         key = videoId,
         creationCallback = { factory -> factory.create(videoId) },
@@ -87,6 +108,7 @@ fun PlayerRoute(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentOnNavigateToVideo by rememberUpdatedState(onNavigateToVideo)
 
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -95,6 +117,8 @@ fun PlayerRoute(
                     is PlayerUiEffect.DownloadFailed -> snackbarHostState.showSnackbar(
                         context.getString(R.string.player_download_error, effect.message.orEmpty()),
                     )
+
+                    is PlayerUiEffect.NavigateToVideo -> currentOnNavigateToVideo(effect.videoId)
                 }
             }
         }
@@ -144,7 +168,7 @@ fun PlayerScreen(
             player = player,
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(StreamlyMediaColors.Letterbox),
         )
     } else {
         PlayerScaffold(
@@ -209,19 +233,21 @@ private fun PlayerScaffold(
             )
 
             is PlayerUiState.Success -> if (isExpandedWidth) {
-                // Tablets / unfolded foldables: video and details side by side.
-                Row(contentModifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                // Tablets / unfolded foldables: video and the tabbed panel side by side.
+                Row(
+                    modifier = contentModifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
                     VideoSurface(
                         player = player,
                         modifier = Modifier
                             .weight(0.65f)
                             .aspectRatio(16f / 9f)
-                            .background(Color.Black),
+                            .background(StreamlyMediaColors.Letterbox),
                     )
-                    VideoDetails(
-                        video = uiState.video,
-                        download = uiState.download,
-                        onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
+                    PlayerTabs(
+                        state = uiState,
+                        onEvent = onEvent,
                         modifier = Modifier.weight(0.35f),
                     )
                 }
@@ -232,14 +258,9 @@ private fun PlayerScaffold(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
-                            .background(Color.Black),
+                            .background(StreamlyMediaColors.Letterbox),
                     )
-                    VideoDetails(
-                        video = uiState.video,
-                        download = uiState.download,
-                        onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    PlayerTabs(state = uiState, onEvent = onEvent)
                 }
             }
         }
@@ -271,6 +292,51 @@ private fun VideoSurface(
     )
 }
 
+/**
+ * The panel under (or beside) the video: Details and Up Next. The selected tab survives rotation,
+ * and resets to Details when the Player is opened for another video — a new entry, new saved state.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerTabs(
+    state: PlayerUiState.Success,
+    onEvent: (PlayerUiEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var selectedTab by rememberSaveable { mutableStateOf(PlayerTab.Details) }
+
+    Column(modifier) {
+        PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+            PlayerTab.entries.forEach { tab ->
+                Tab(
+                    selected = tab == selectedTab,
+                    onClick = { selectedTab = tab },
+                    text = { Text(stringResource(tab.labelRes())) },
+                )
+            }
+        }
+
+        when (selectedTab) {
+            PlayerTab.Details -> VideoDetails(
+                video = state.video,
+                download = state.download,
+                onDownloadClick = { onEvent(PlayerUiEvent.OnDownloadClick) },
+                modifier = Modifier.padding(16.dp),
+            )
+
+            PlayerTab.UpNext -> UpNextList(
+                videos = state.relatedVideos,
+                onVideoClick = { videoId -> onEvent(PlayerUiEvent.OnRelatedVideoClick(videoId)) },
+            )
+        }
+    }
+}
+
+private fun PlayerTab.labelRes(): Int = when (this) {
+    PlayerTab.Details -> R.string.player_tab_details
+    PlayerTab.UpNext -> R.string.player_tab_up_next
+}
+
 @Composable
 private fun VideoDetails(
     video: Video,
@@ -280,10 +346,14 @@ private fun VideoDetails(
 ) {
     Column(modifier.verticalScroll(rememberScrollState())) {
         Text(text = video.title, style = MaterialTheme.typography.titleLarge)
-        if (video.category.isNotBlank()) {
+        val meta = listOfNotNull(
+            video.category.takeIf { it.isNotBlank() },
+            formatDuration(video.duration).takeIf { video.duration > 0 },
+        )
+        if (meta.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
             Text(
-                text = video.category,
+                text = meta.joinToString(" · "),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -293,6 +363,97 @@ private fun VideoDetails(
         if (video.description.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             Text(text = video.description, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** Suggestions for what to watch next; empty until they load, or if the fetch failed. */
+@Composable
+private fun UpNextList(
+    videos: List<Video>,
+    onVideoClick: (videoId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (videos.isEmpty()) {
+        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(R.string.player_up_next_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(24.dp),
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(videos, key = { it.id }) { video ->
+            UpNextRow(video = video, onClick = { onVideoClick(video.id) })
+        }
+    }
+}
+
+@Composable
+private fun UpNextRow(
+    video: Video,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box {
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = null,
+                    placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+                    error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(120.dp)
+                        .aspectRatio(16f / 9f),
+                )
+                if (video.duration > 0) {
+                    Surface(
+                        color = StreamlyMediaColors.Scrim,
+                        contentColor = StreamlyMediaColors.OnMedia,
+                        shape = MaterialTheme.shapes.extraSmall,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp),
+                    ) {
+                        Text(
+                            text = formatDuration(video.duration),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            }
+            Column(Modifier.align(Alignment.CenterVertically)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (video.category.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = video.category,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
@@ -354,5 +515,31 @@ private fun ImmersiveMode() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller.hide(WindowInsetsCompat.Type.systemBars())
         onDispose { controller.show(WindowInsetsCompat.Type.systemBars()) }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PlayerTabsPreview() {
+    StreamlyTheme {
+        PlayerTabs(
+            state = PlayerUiState.Success(
+                video = Video(
+                    id = "1",
+                    title = "Big Buck Bunny",
+                    description = "A large rabbit takes revenge on three rodents who torment him.",
+                    videoUrl = "",
+                    thumbnailUrl = "",
+                    category = "Animation",
+                    duration = 635,
+                    isShort = false,
+                ),
+                relatedVideos = listOf(
+                    Video("2", "Tears of Steel", "", "", "", "Sci-Fi", 734, false),
+                    Video("3", "Sintel", "", "", "", "Animation", 888, false),
+                ),
+            ),
+            onEvent = {},
+        )
     }
 }

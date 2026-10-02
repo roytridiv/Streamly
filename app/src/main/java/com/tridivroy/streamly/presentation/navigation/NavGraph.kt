@@ -122,6 +122,12 @@ fun StreamlyNavGraph(
                             videoId = key.videoId,
                             windowSizeClass = windowSizeClass,
                             onBack = { backStack.removeLastOrNull() },
+                            // Up Next replaces this Player entry instead of stacking another one,
+                            // so back from any suggestion still returns to the tab it was opened from.
+                            onNavigateToVideo = { videoId ->
+                                backStack.removeLastOrNull()
+                                backStack.add(PlayerKey(videoId))
+                            },
                         )
                     }
                 },

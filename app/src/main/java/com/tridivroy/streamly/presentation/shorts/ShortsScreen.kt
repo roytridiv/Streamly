@@ -63,6 +63,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.core.theme.StreamlyMediaColors
 import com.tridivroy.streamly.domain.model.Video
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -117,11 +118,11 @@ fun ShortsScreen(
 ) {
     val screenModifier = modifier
         .fillMaxSize()
-        .background(Color.Black)
+        .background(StreamlyMediaColors.Letterbox)
 
     when (uiState) {
         ShortsUiState.Loading -> Box(screenModifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color.White)
+            CircularProgressIndicator(color = StreamlyMediaColors.OnMedia)
         }
 
         ShortsUiState.Empty -> MessageContent(
@@ -218,7 +219,7 @@ private fun ShortPage(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(0.4f)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))),
+                .background(Brush.verticalGradient(listOf(Color.Transparent, StreamlyMediaColors.Scrim))),
         )
 
         Row(
@@ -244,7 +245,7 @@ private fun ShortPage(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = stringResource(R.string.shorts_play),
-                tint = Color.White.copy(alpha = 0.85f),
+                tint = StreamlyMediaColors.OnMediaVariant,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(72.dp),
@@ -287,7 +288,7 @@ private fun VideoMetadata(
         Text(
             text = video.title,
             style = MaterialTheme.typography.titleMedium,
-            color = Color.White,
+            color = StreamlyMediaColors.OnMedia,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -296,7 +297,7 @@ private fun VideoMetadata(
             Text(
                 text = "#${video.category}",
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.9f),
+                color = StreamlyMediaColors.OnMedia,
             )
         }
         if (video.description.isNotBlank()) {
@@ -304,7 +305,7 @@ private fun VideoMetadata(
             Text(
                 text = video.description,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.8f),
+                color = StreamlyMediaColors.OnMediaVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -328,7 +329,7 @@ private fun ActionColumn(
             Icon(
                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = stringResource(if (isLiked) R.string.shorts_unlike else R.string.shorts_like),
-                tint = if (isLiked) Color.Red else Color.White,
+                tint = if (isLiked) StreamlyMediaColors.Like else StreamlyMediaColors.OnMedia,
                 modifier = Modifier.size(32.dp),
             )
         }
@@ -336,7 +337,7 @@ private fun ActionColumn(
             Icon(
                 imageVector = Icons.Filled.Share,
                 contentDescription = stringResource(R.string.shorts_share),
-                tint = Color.White,
+                tint = StreamlyMediaColors.OnMedia,
                 modifier = Modifier.size(28.dp),
             )
         }
@@ -376,12 +377,12 @@ private fun PlaybackIndicators(
 
     Box(modifier) {
         if (isBuffering) {
-            CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
+            CircularProgressIndicator(color = StreamlyMediaColors.OnMedia, modifier = Modifier.align(Alignment.Center))
         }
         LinearProgressIndicator(
             progress = { progress },
-            color = Color.White,
-            trackColor = Color.White.copy(alpha = 0.25f),
+            color = StreamlyMediaColors.OnMedia,
+            trackColor = StreamlyMediaColors.OnMediaVariant.copy(alpha = 0.25f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -403,7 +404,7 @@ private fun MessageContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = message, color = Color.White, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(text = message, color = StreamlyMediaColors.OnMedia, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text(stringResource(R.string.shorts_retry))

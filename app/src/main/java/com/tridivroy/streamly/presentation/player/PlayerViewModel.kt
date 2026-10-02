@@ -86,6 +86,9 @@ class PlayerViewModel @AssistedInject constructor(
         when (event) {
             PlayerUiEvent.Retry -> loadVideo()
             PlayerUiEvent.OnDownloadClick -> toggleDownload()
+            is PlayerUiEvent.OnRelatedVideoClick -> viewModelScope.launch {
+                _effects.send(PlayerUiEffect.NavigateToVideo(event.videoId))
+            }
         }
     }
 
@@ -106,6 +109,26 @@ class PlayerViewModel @AssistedInject constructor(
                     },
                     onFailure = { PlayerUiState.Error(it.message) },
                 )
+            (_uiState.value as? PlayerUiState.Success)?.let { success -> loadRelatedVideos(success.video) }
+        }
+    }
+
+    /**
+     * Fills the "Up Next" tab: other videos from the same category first, then anything else, so the
+     * tab is not empty just because a category holds a single video. Suggestions are a nicety, so a
+     * failure here leaves the list empty rather than failing the screen.
+     */
+    private fun loadRelatedVideos(video: Video) {
+        viewModelScope.launch {
+            val others = videoRepository.getHomeVideos().getOrNull()
+                ?.filter { it.id != video.id }
+                ?: return@launch
+            val related = others
+                .sortedByDescending { it.category.equals(video.category, ignoreCase = true) }
+                .take(MAX_RELATED_VIDEOS)
+            _uiState.update { state ->
+                if (state is PlayerUiState.Success) state.copy(relatedVideos = related) else state
+            }
         }
     }
 
@@ -160,5 +183,9 @@ class PlayerViewModel @AssistedInject constructor(
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
         }
+    }
+
+    private companion object {
+        const val MAX_RELATED_VIDEOS = 10
     }
 }

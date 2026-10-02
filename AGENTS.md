@@ -32,7 +32,8 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 | 3 | Media3 ExoPlayer & Home Screen MVI UI | Done | `6dd6fe4` |
 | 4 | Player Screen & Navigation 3 Routing | Done | `4dd76bb` |
 | 5 | Shorts Feed & Home/Shorts Tabs | Done | `6f6e98f` |
-| 6 | Offline Downloads & DataStore Preferences | Done (uncommitted) | — |
+| 6 | Offline Downloads & DataStore Preferences | Done | `9c15b62` |
+| 7 | Nordic Mint Theme & Tabbed Player | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -70,3 +71,11 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 - Presentation: `presentation/downloads/` (`DownloadsUiState`, `DownloadsUiEvent`, `DownloadsViewModel`, `DownloadsScreen` — adaptive grid, progress, retry, remove); `presentation/settings/` (`SettingsViewModel`, `SettingsSheet` opened from Home); Player gets a download button, offline metadata fallback, downloaded stream keys and the quality cap; Shorts likes persist as favourites; `MainViewModel` + `MainActivity` apply the theme (system-bar icons follow it); `core/theme/StreamlyIcons.kt` (download icon); `DownloadsKey` + tab in `NavGraph.kt`.
 - Manifest/resources: `FOREGROUND_SERVICE(_DATA_SYNC)`, `POST_NOTIFICATIONS` (requested on first download), `RECEIVE_BOOT_COMPLETED`; `MediaDownloadService` (`dataSync`) and `PlatformSchedulerService`; download/settings strings.
 - Verified on device (SM-M015G, Android 10): theme + quality persist across reinstall; 480p download of a 6-min HLS stream (46 MB) with live progress and notification; cold start with mobile data off plays it from the Downloads tab.
+
+### 7. Nordic Mint / Sage Green Theme & Tabbed Player UI
+- Prompt: Apply the finalized Nordic Mint / Sage Green aesthetic (`#121820` ground, `#2EC4B6` mint accent) and a tabbed player UI across the presentation layer, `Color.kt` and `Theme.kt`.
+- Theme: `core/theme/Color.kt` replaced the template purple with the brand palette — mint primary, sage green secondary, frost blue tertiary, full light/dark token sets, plus a `StreamlyMediaColors` object for colours that sit on video (letterbox, scrim, on-media text, like tint) and therefore must not follow the scheme. `core/theme/Theme.kt` wires both schemes and **drops dynamic colour**: a wallpaper-derived scheme would break the brand and the contrast of overlays drawn over video.
+- Tabbed player: `presentation/player/PlayerScreen.kt` now shows `PrimaryTabRow` with Details / Up Next under the video (beside it on expanded widths; untouched in landscape fullscreen). `PlayerTab` enum in `PlayerUiState.kt`; `PlayerUiState.Success.relatedVideos`; `PlayerUiEvent.OnRelatedVideoClick` + `PlayerUiEffect.NavigateToVideo`.
+- Up Next: `PlayerViewModel.loadRelatedVideos()` reuses `getHomeVideos()`, same-category first, capped at 10, failing silently to an empty tab. `NavGraph.kt` replaces the Player entry rather than stacking one, so back still returns to the originating tab.
+- Shared: `presentation/common/VideoFormat.kt` holds `formatDuration()`, previously private to `HomeScreen`. Home and Shorts overlays switched from `Color.Black`/`Color.White` to `StreamlyMediaColors`. New strings: `player_tab_details`, `player_tab_up_next`, `player_up_next_empty`.
+- Verified: `./gradlew assembleDebug` BUILD SUCCESSFUL, zero errors (only the pre-existing `@StringRes` KT-73255 warnings). Not yet run on device.

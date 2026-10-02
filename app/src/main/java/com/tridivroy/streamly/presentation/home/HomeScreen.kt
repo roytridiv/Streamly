@@ -39,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -55,8 +54,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.core.theme.StreamlyMediaColors
 import com.tridivroy.streamly.core.theme.StreamlyTheme
 import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.presentation.common.formatDuration
 import com.tridivroy.streamly.presentation.settings.SettingsSheet
 
 /** Stateful entry point: wires [HomeViewModel] to the stateless [HomeScreen]. */
@@ -225,8 +226,8 @@ private fun VideoCard(
             )
             if (video.duration > 0) {
                 Surface(
-                    color = Color.Black.copy(alpha = 0.75f),
-                    contentColor = Color.White,
+                    color = StreamlyMediaColors.Scrim,
+                    contentColor = StreamlyMediaColors.OnMedia,
                     shape = MaterialTheme.shapes.extraSmall,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -275,18 +276,6 @@ private fun ErrorContent(
         Button(onClick = onRetry) {
             Text(stringResource(R.string.home_retry))
         }
-    }
-}
-
-/** Formats seconds as `m:ss`, or `h:mm:ss` for an hour or longer. */
-private fun formatDuration(totalSeconds: Long): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }
 
