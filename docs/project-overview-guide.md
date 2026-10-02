@@ -1,8 +1,8 @@
 # Streamly — Project Overview & Architecture Guide
 
-Streamly is a 100% Jetpack Compose video app: a Home feed, a full-screen Player, a TikTok/Reels-style Shorts feed, and offline HLS downloads. This guide explains how it is put together, why the key decisions were made, and where to find things.
+Streamly is a 100% Jetpack Compose video app: an Onboarding/Auth gate, a Home feed, a tabbed Player, a TikTok/Reels-style Shorts feed, offline HLS downloads, and a Profile screen — all in the Nordic Mint design. This guide explains how it is put together, why the key decisions were made, and where to find things.
 
-> **Status (as of commit `9c15b62`)** — Steps 1–6 in [`AGENTS.md`](../AGENTS.md) are implemented. The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app currently runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
+> **Status** — Workflows 1–12 in [`AGENTS.md`](../AGENTS.md) are implemented; 7–12 are committed-pending. Since workflow 8 the UI follows the Nordic Mint design handoff, and the app opens on an Onboarding/Auth screen. Smoke-tested on a physical device (moto e5 plus, Android 8.0 / API 26) in workflow 12. The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
 
 ---
 
@@ -23,7 +23,7 @@ Streamly follows Clean Architecture with four layers. **Today they are package b
 
 | Layer | Responsibility | Depends on | Must not depend on |
 |---|---|---|---|
-| `domain` | Models (`Video`, `VideoDownload`, `UserPreferences`) and repository interfaces | Kotlin stdlib, `kotlinx.coroutines` | Android, Ktor, Media3, DataStore |
+| `domain` | Models (`Video` + `Channel`/`VideoStats`/`Chapter`, `VideoDownload`, `UserPreferences`, `UserSession`) and repository interfaces | Kotlin stdlib, `kotlinx.coroutines` | Android, Ktor, Media3, DataStore |
 | `data` | Repository implementations: Ktor API + DTO mapping, DataStore | `domain` | `presentation` |
 | `core` | Cross-cutting infrastructure: Hilt modules, Ktor client, Media3 players, download manager, theme | `domain` | `presentation` |
 | `presentation` | Compose screens, ViewModels (MVI), Navigation 3 graph | `domain`, and `core` for players and theme | `data` |
@@ -132,10 +132,12 @@ PlayerScreen "Download"  ─► PlayerViewModel ─► DownloadRepository.downlo
 
 ### 2.3 Navigation 3
 
-- **Destinations are keys.** `presentation/navigation/StreamlyNavKeys.kt` defines `@Serializable` `NavKey`s: `HomeKey`, `ShortsKey`, `DownloadsKey`, and `PlayerKey(videoId)`. Arguments are plain constructor fields, so there are no string routes or argument bundles.
-- **The back stack is a list you own.** `StreamlyNavGraph` (in `NavGraph.kt`; called `StreamlyNavDisplay` before Step 5) creates it with `rememberNavBackStack(HomeKey)`, which is saveable and survives rotation and process death. Navigating is `backStack.add(PlayerKey(id))`, and going back is `removeLastOrNull()`.
+- **Destinations are keys.** `presentation/navigation/StreamlyNavKeys.kt` defines `@Serializable` `NavKey`s: `OnboardingKey`, `HomeKey`, `ShortsKey`, `DownloadsKey`, `ProfileKey`, and `PlayerKey(videoId)`. Arguments are plain constructor fields, so there are no string routes or argument bundles.
+- **The back stack is a list you own.** `StreamlyNavGraph` (in `NavGraph.kt`; called `StreamlyNavDisplay` before Step 5) creates it with `rememberNavBackStack(...)`, which is saveable and survives rotation and process death. Navigating is `backStack.add(PlayerKey(id))`, and going back is `removeLastOrNull()`.
+- **The start destination depends on the session.** `MainViewModel.hasSession` is `Boolean?`; while it is `null` the graph renders a bare background and waits rather than guessing, because rooting at Home and then yanking a returning user to onboarding (or the reverse) is visible. The root is then `HomeKey` or `OnboardingKey`, evaluated once. Signing in and signing out move the stack explicitly with `resetTo(key)`, which pushes before trimming so the stack is never momentarily empty.
 - **Tabs** sit on top of the Home root: `[Home]`, `[Home, Shorts]`, `[Home, Downloads]`. Selecting a tab pops back to Home and then pushes the tab, so system back always returns to Home. Leaving Shorts pops its entry, which frees its player pool.
-- **Adaptive chrome.** There is a `NavigationBar` on compact widths and a `NavigationRail` on medium and expanded widths (tablets, unfolded foldables). It is hidden on the Player screen.
+- **Adaptive chrome.** A custom `StreamlyBottomBar` on compact widths and a `StreamlyNavRail` on medium and expanded widths. The bar is shown on the three tabs **and on the Player**, so a tab is always one tap away while something plays; it is hidden for fullscreen playback, Onboarding and Profile. Which tab is highlighted is found by scanning *down* the stack, since the Player sits on top of whichever tab opened it. The box holding `NavDisplay` consumes the navigation-bar insets whenever the bar is shown, so screens above it do not pad for them twice.
+- **Mini-player.** While the shared player holds a video, a 58dp mini-player docks above the bar on Home and Downloads (keyed on the top of the stack, so it never covers the Player itself). `PlayerViewModel.onCleared()` deliberately leaves playback running so this handover works; `NowPlayingStore.pause()` is called when the Shorts pool takes over, to keep the "1–2 active players" rule.
 - **ViewModel scoping** uses two entry decorators on `NavDisplay`:
   - `rememberSaveableStateHolderNavEntryDecorator()`: per-entry `rememberSaveable` state.
   - `rememberViewModelStoreNavEntryDecorator()` (from `lifecycle-viewmodel-navigation3`): each entry gets its own `ViewModelStore`. `hiltViewModel()` is then scoped to that entry, cleared when it is popped, and kept across rotation.
@@ -165,10 +167,35 @@ Conventions:
 **DataStore preferences.**
 - `data/local/datastore/UserPreferencesRepository` implements the domain `PreferencesRepository`. It uses a single Preferences DataStore instance (`DataStoreModule`; DataStore allows only one instance per file).
 - It stores:
-  - `favorite_video_ids`: a string set. Shorts likes are persisted here.
+  - `favorite_video_ids`: a string set. Shorts and Player likes are persisted here.
+  - `saved_video_ids`: the Shorts rail's Save action, kept separate from Like.
+  - `subscribed_channels`: channel handles, behind both Subscribe (Player) and Follow (Shorts).
+  - `watched_video_ids`: added to when playback starts, behind the Profile screen's "Watched" stat.
+  - `session_*` (six keys): the signed-in account. A session exists only once a handle is stored.
   - `playback_quality`: an enum name. It caps the Player's track selection and the download rendition.
-  - `theme_mode`: an enum name. `MainViewModel` applies it to `StreamlyTheme` and to the system-bar icon colours.
+  - `theme_mode`: an enum name. `MainViewModel` applies it to `StreamlyTheme` and to the system-bar icon colours. **Defaults to `Dark`**, not `System` — see [Q11](#q11-why-does-the-theme-default-to-dark-rather-than-following-the-system).
 - An `IOException` while reading falls back to defaults, so a corrupt file never crashes the app. Writes go through `dataStore.edit {}`, which is atomic.
+
+### 2.5 Nordic Mint theme
+
+The UI follows the design handoff in `design_handoff_streamly_nordic_mint/`. Dark is the canonical scheme; the light scheme exists so an explicit Light choice works, and the default is Dark.
+
+- `core/theme/Color.kt` — handoff tokens (`SlateCharcoal` #121820, `SoftCharcoal` #1E2630, `SurfaceRaised`, `SageMint` #2EC4B6, `MintText`, `MintTint`, `OnMint`, the text ramp, `StorageOther`) mapped onto the Material `ColorScheme`: `MintTint`/`MintText` become `primaryContainer`/`onPrimaryContainer`, `SoftCharcoal` becomes `surfaceContainer`.
+- `StreamlyBrand` holds what has no Material slot, plus every colour that sits **on video** — letterbox, scrim, on-media text, frosted surfaces, glow, and `MintTintOnMedia`/`MintTextOnMedia`. These are pinned dark values on purpose: the frame underneath is never themed, so a themed pair would be unreadable over footage in the light scheme.
+- `core/theme/Shape.kt` — `asymmetricPill(height)` is the brand signature (17/6/17/17 at 34dp, scaled by height), used by chips, badges, the nav indicator and Follow/Subscribe.
+- `core/theme/Type.kt` — the handoff scale with Medium headings and SemiBold badges, plus `StreamlyType` for the mono timestamps and the wordmark. Inter and JetBrains Mono are not bundled, so these resolve to the platform sans/mono.
+- `core/theme/StreamlyLogo.kt` — the v2-bolt mark drawn in Compose from the same path data as `res/drawable/ic_streamly_logo.xml`, because the splash animates the play mark and the bolt separately.
+- Dynamic colour is deliberately off: a wallpaper-derived scheme would break both the brand and the contrast of text drawn over video.
+
+**Known substitutions.** Frosted surfaces are translucent fills, not backdrop blurs (`Modifier.blur` is API 31+ and does not sample what is behind it); material3 1.3's `IconButton` is circle-only, so 12dp-radius icon buttons are clipped clickable boxes.
+
+### 2.6 Session, onboarding and profile
+
+- `UserSession` (display name, handle, avatar, premium flag, `SignInMethod`, timestamp) is persisted in the same DataStore. There is no auth backend yet: `UserSession.forMethod()` builds the session each button produces, and only the callers of `PreferencesRepository.signIn` change when real auth arrives.
+- **Guest is a real session** with no identity. That is what makes a returning guest skip onboarding.
+- Onboarding reuses the Profile screen's `SignInCard` rather than a second copy of the pitch; the card takes an optional `onContinueAsGuest`, rendered only where skipping is possible.
+- Sign-out confirms in a dialog, clears the session and resets the stack to Onboarding. `ProfileViewModel.signingOut` holds the last signed-in frame while the session clears, so the screen does not flash its own sign-in card on the way out.
+- Profile's stats come from data the app already keeps — watched IDs, completed downloads, favourites — rather than invented numbers. "Clear cache" is scoped to Coil's image cache; clearing the Media3 download cache would delete the viewer's offline videos behind an innocuous label.
 
 ---
 
@@ -182,7 +209,8 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 | App | `MainActivity.kt` / `MainViewModel.kt` | Edge-to-edge host, applies the persisted theme, computes `WindowSizeClass`, hosts the nav graph |
 | Domain | `domain/model/Video.kt` | Core video model |
 | Domain | `domain/model/VideoDownload.kt` | Download snapshot + `DownloadStatus` |
-| Domain | `domain/model/UserPreferences.kt` | Favourites, `PlaybackQuality`, `ThemeMode` |
+| Domain | `domain/model/UserPreferences.kt` | Favourites, saved, subscriptions, watched, session, `PlaybackQuality`, `ThemeMode` |
+| Domain | `domain/model/UserSession.kt` | Signed-in account + `SignInMethod` (Google / Email / Guest) |
 | Domain | `domain/repository/VideoRepository.kt` | Home, Shorts and by-id video access |
 | Domain | `domain/repository/DownloadRepository.kt` | Download, remove, observe, offline metadata |
 | Domain | `domain/repository/PreferencesRepository.kt` | Preference reads and writes |
@@ -198,11 +226,20 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 | Core | `core/media/DownloadTracker.kt` | `DownloadRepository` over Media3 `DownloadManager` |
 | Core | `core/media/MediaDownloadService.kt` | Foreground download service + notification + scheduler |
 | Core | `core/media/VideoMediaItem.kt` | `Video.toMediaItem()` with explicit HLS MIME type |
-| Core | `core/theme/` | Material 3 theme, `StreamlyIcons.Download` |
+| Core | `core/media/NowPlayingStore.kt` | Mirrors the shared player for the mini-player; polls position only while playing |
+| Core | `core/storage/DeviceStorage.kt` | Real `StatFs` figures for the Downloads usage card |
+| Core | `core/storage/ImageCacheCleaner.kt` | Measures and clears Coil's image cache (never the download cache) |
+| Core | `core/theme/` | Nordic Mint `Color.kt`, `Shape.kt` (`asymmetricPill`), `Type.kt`, `Theme.kt`, `StreamlyLogo.kt`, full `StreamlyIcons` set |
 | Presentation | `presentation/navigation/NavGraph.kt` | `StreamlyNavGraph`: back stack, tabs, entry decorators |
-| Presentation | `presentation/navigation/StreamlyNavKeys.kt` | `HomeKey`, `ShortsKey`, `DownloadsKey`, `PlayerKey` |
-| Presentation | `presentation/home/*` | Home feed MVI + settings entry point |
-| Presentation | `presentation/player/*` | Player MVI, adaptive layout, download button |
+| Presentation | `presentation/navigation/StreamlyNavKeys.kt` | `OnboardingKey`, `HomeKey`, `ShortsKey`, `DownloadsKey`, `ProfileKey`, `PlayerKey` |
+| Presentation | `presentation/navigation/components/` | `StreamlyBottomBar` / `StreamlyNavRail`, `MiniPlayer` |
+| Presentation | `presentation/splash/StreamlySplash.kt` | Compose half of the launch animation, after the SplashScreen API icon |
+| Presentation | `presentation/onboarding/*` | Start destination when no session exists; Google / Email / Guest |
+| Presentation | `presentation/profile/*` | Signed-out and signed-in states, stats, settings list, sign-out dialog |
+| Presentation | `presentation/common/*` | `formatDuration`/`formatCount`/`formatRelativeAge`/`formatBytes`, `rememberPlaybackProgress` |
+| Presentation | `presentation/components/StreamlyToast.kt` | The handoff's toast pill |
+| Presentation | `presentation/home/*` | Home feed MVI, top bar, category chips, video cards |
+| Presentation | `presentation/player/*` | Player MVI, floating viewport, auto-hiding controls, fullscreen, Overview / Key Moments / Up Next tabs |
 | Presentation | `presentation/shorts/*` | Shorts MVI, `VerticalPager`, overlays, progress |
 | Presentation | `presentation/downloads/*` | Downloads list MVI, offline playback entry |
 | Presentation | `presentation/settings/*` | Theme and quality bottom sheet |
@@ -218,7 +255,7 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 No, not yet. They are packages in `:app`, so the compiler does not stop `domain` from importing Android classes; review does. Moving `domain` into a pure `kotlin("jvm")` module would let the build itself reject framework imports, and would speed up incremental builds. This is the main architecture follow-up.
 
 #### Q2. Why is the ExoPlayer a singleton, and how does it avoid leaks?
-Creating a player is expensive, and the rules require reuse across navigation and rotation. The singleton is created with the application context, and screens never release it. `PlayerViewModel` only stops it, and only if it still owns the current item. `PlayerView` is detached in `AndroidView.onRelease`, so no Activity-bound view keeps a reference to the player.
+Creating a player is expensive, and the rules require reuse across navigation and rotation. The singleton is created with the application context, and screens never release it. `PlayerView` is detached in `AndroidView.onRelease`, so no Activity-bound view keeps a reference to the player. Since workflow 11 `PlayerViewModel.onCleared()` does not stop playback either: leaving the Player hands the video to the mini-player. It is reined in by the mini-player's pause button, `NowPlayingStore.pause()` when Shorts takes over, and the `ProcessLifecycleOwner` observer that pauses on background.
 
 #### Q3. Why does Shorts use its own players instead of the singleton?
 A single player can't buffer the next clip while playing the current one. With two pooled players, the next page is prepared and paused on its first frame before the swipe. Capping the pool at two follows the "1–2 active players" rule and stops audio bleed, because only the active slot ever plays.
@@ -251,13 +288,25 @@ In two places:
 #### Q10. How are one-off events (navigation, share, snackbars) kept from re-firing on rotation?
 They are not part of `UiState`. Each ViewModel sends them through `Channel(BUFFERED).receiveAsFlow()`, so each effect is delivered once to one collector. Routes collect them inside `repeatOnLifecycle(STARTED)` and read callbacks through `rememberUpdatedState`, so a recreated Activity neither replays nor drops them.
 
+#### Q11. Why does the theme default to Dark rather than following the system?
+Because "System" made the brand unreachable. Nordic Mint is a dark-only design, and on any device without a system dark mode — anything pre-Android 10, or simply a phone in light mode — `isSystemInDarkTheme()` is false, so the app opened in the light variant and the design was never seen. This was caught on device in workflow 12 (API 26) and the default moved to `Dark` in the model, the DataStore fallback and `MainViewModel`'s initial value. Light and System remain selectable in Profile.
+
+#### Q12. How do the Player overlay controls decide when to hide?
+`PlayerControlsState` holds visibility plus an `interactionCount` that is bumped by every interaction and used as a `LaunchedEffect` key, so each new interaction cancels the pending hide and starts a fresh 3-second countdown. The countdown only runs while playing — a paused video keeps its controls, since the play button is the way back out. The controls are wrapped in `AnimatedVisibility` rather than faded with alpha, because a zero-alpha overlay would still swallow the taps meant for the video underneath.
+
+#### Q13. What does the fullscreen toggle actually change?
+It flips one piece of saveable state in `PlayerScreen`. The same `FloatingPlayerViewport` then fills the window instead of floating, so the overlay and its auto-hide behave identically in both modes. A single `FullscreenWindowEffect` owns both window side effects — system bars and `requestedOrientation` — and clears both in `onDispose`, so leaving the Player by any route cannot strand the app locked in landscape or immersive. Rotating a phone into landscape still enters fullscreen on its own; the button and the device drive the same state.
+
 ---
 
 ### Known gaps / next steps
 
 - Split layers into Gradle modules ([Q1](#q1-are-core-data-domain-and-presentation-separate-gradle-modules)).
 - Replace the placeholder `BASE_URL` and review the fallback streams for release builds.
-- There is no favourites list screen yet; favourites currently only drive the Shorts like state.
+- There is no favourites list screen yet; favourites drive the Shorts/Player like state and the Profile stat.
 - No download-complete notification, and a failed retry from the Downloads list shows no extra message.
 - The quality cap is not applied to the Shorts pool.
-- No unit or UI tests yet.
+- No unit or UI tests yet. Workflow 12 was a manual ADB smoke test, not an automated suite — the flows it covered are the obvious first instrumentation targets.
+- Auth is mocked: every button writes a placeholder session, and the Google button shows a neutral monogram rather than Google's logo. Wiring a real provider changes only the callers of `PreferencesRepository.signIn` and that one asset.
+- Inter and JetBrains Mono are not bundled, so type falls back to the platform faces.
+- The Shorts rail's Comments entry shows a count but has nowhere to go; the Player's overflow slot is likewise empty.
