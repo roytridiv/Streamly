@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -19,7 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -141,6 +145,19 @@ private fun SuccessContent(
             )
         }
 
+        // A new category is a new list, so it starts at the top. The list is keyed by video id, so
+        // left alone it would hold its place on whichever card was on screen and hide everything above
+        // it. The category last shown is saved rather than keyed on directly: coming back from the
+        // Player re-runs effects, and that must keep the viewer's scroll position, not reset it.
+        val listState = rememberLazyListState()
+        var shownCategory by rememberSaveable { mutableStateOf(state.selectedCategory) }
+        LaunchedEffect(state.selectedCategory) {
+            if (state.selectedCategory != shownCategory) {
+                shownCategory = state.selectedCategory
+                listState.scrollToItem(0)
+            }
+        }
+
         val videos = state.visibleVideos
         if (videos.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -152,6 +169,7 @@ private fun SuccessContent(
             }
         } else {
             LazyColumn(
+                state = listState,
                 // Bottom padding clears the mini-player, which docks over this list.
                 contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 90.dp),
                 verticalArrangement = Arrangement.spacedBy(22.dp),

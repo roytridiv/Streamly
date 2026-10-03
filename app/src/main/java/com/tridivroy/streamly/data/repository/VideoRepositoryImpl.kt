@@ -111,7 +111,7 @@ class VideoRepositoryImpl @Inject constructor(
                 id = "fallback-elephants-dream",
                 title = "Elephant's Dream — Open Educational Film",
                 description = "The world's first open-source computer-generated short movie, great for open graphics education.",
-                videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                videoUrl = "https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4",
                 thumbnailUrl = thumbnail("elephantsdream"),
                 category = "Educational",
                 duration = 653,
