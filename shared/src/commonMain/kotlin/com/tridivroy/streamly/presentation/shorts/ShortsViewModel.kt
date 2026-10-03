@@ -2,12 +2,12 @@ package com.tridivroy.streamly.presentation.shorts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.Player
-import com.tridivroy.streamly.core.media.NowPlayingStore
-import com.tridivroy.streamly.core.media.ShortsPlayerPool
+import com.tridivroy.streamly.presentation.common.VideoSurfaceHandle
 import com.tridivroy.streamly.domain.repository.PreferencesRepository
 import com.tridivroy.streamly.domain.repository.VideoRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.tridivroy.streamly.core.di.SharedModule
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -19,18 +19,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
- * Owns the Shorts [ShortsPlayerPool] (separate from the app-wide player) and decides which page
+ * Owns the Shorts [ShortsPlayerController] (separate from the app-wide player) and decides which page
  * plays. The pool lives as long as this ViewModel: it survives rotation and is released when the
  * Shorts entry leaves the back stack.
  */
-@HiltViewModel
-class ShortsViewModel @Inject constructor(
+class ShortsViewModel(
     private val videoRepository: VideoRepository,
-    private val playerPool: ShortsPlayerPool,
-    private val nowPlayingStore: NowPlayingStore,
+    private val playerPool: ShortsPlayerController,
+    private val nowPlayingStore: NowPlayingController,
     private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
 
@@ -51,7 +49,7 @@ class ShortsViewModel @Inject constructor(
     }
 
     /** The player for [index], or `null` when that page isn't loaded (UI shows its thumbnail). */
-    fun playerFor(index: Int): Player? = playerPool.playerFor(index)
+    fun playerFor(index: Int): VideoSurfaceHandle? = playerPool.playerFor(index)
 
     fun onEvent(event: ShortsUiEvent) {
         when (event) {
@@ -159,5 +157,23 @@ class ShortsViewModel @Inject constructor(
 
     override fun onCleared() {
         playerPool.release()
+    }
+}
+
+/**
+ * Builds [ShortsViewModel] from the shared service locator, in place of `hiltViewModel()`.
+ *
+ * Three of its four dependencies are platform-provided — the player pool, the app-wide player and
+ * preferences all sit on Android frameworks — so the locator hands over whatever the host
+ * registered, falling back to the no-op implementations on a platform that has none.
+ */
+val ShortsViewModelFactory = viewModelFactory {
+    initializer {
+        ShortsViewModel(
+            videoRepository = SharedModule.videoRepository,
+            playerPool = SharedModule.shortsPlayerController,
+            nowPlayingStore = SharedModule.nowPlayingController,
+            preferencesRepository = SharedModule.preferencesRepository,
+        )
     }
 }

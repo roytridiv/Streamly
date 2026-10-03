@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.repository.DownloadRepository
 import com.tridivroy.streamly.domain.repository.VideoRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -17,10 +16,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class HomeViewModel @Inject constructor(
+class HomeViewModel(
     private val videoRepository: VideoRepository,
     private val downloadRepository: DownloadRepository,
 ) : ViewModel() {

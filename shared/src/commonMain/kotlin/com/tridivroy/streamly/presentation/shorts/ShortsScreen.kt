@@ -1,6 +1,5 @@
 package com.tridivroy.streamly.presentation.shorts
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,23 +33,35 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import com.tridivroy.streamly.shared.resources.Res
+import com.tridivroy.streamly.shared.resources.shorts_like
+import com.tridivroy.streamly.shared.resources.shorts_unlike
+import com.tridivroy.streamly.shared.resources.shorts_share
+import com.tridivroy.streamly.shared.resources.shorts_comments
+import com.tridivroy.streamly.shared.resources.shorts_save
+import com.tridivroy.streamly.shared.resources.shorts_unsave
+import com.tridivroy.streamly.shared.resources.shorts_follow
+import com.tridivroy.streamly.shared.resources.shorts_following
+import com.tridivroy.streamly.shared.resources.shorts_play
+import com.tridivroy.streamly.shared.resources.shorts_retry
+import com.tridivroy.streamly.shared.resources.shorts_empty
+import com.tridivroy.streamly.shared.resources.shorts_error_generic
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.tridivroy.streamly.core.di.SharedModule
+import com.tridivroy.streamly.presentation.common.VideoSurface
+import com.tridivroy.streamly.presentation.common.VideoSurfaceHandle
+import com.tridivroy.streamly.presentation.common.rememberVideoSharer
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
-import com.tridivroy.streamly.R
+import coil3.compose.AsyncImage
 import com.tridivroy.streamly.core.theme.StreamlyBrand
 import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.domain.model.Video
@@ -67,24 +78,20 @@ import com.tridivroy.streamly.presentation.shorts.components.ShortsProgressBar
 @Composable
 fun ShortsRoute(
     modifier: Modifier = Modifier,
-    viewModel: ShortsViewModel = hiltViewModel(),
+    viewModel: ShortsViewModel = viewModel(factory = ShortsViewModelFactory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val shareChooserTitle = stringResource(R.string.shorts_share_chooser)
+    val share = rememberVideoSharer()
 
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.effects.collect { effect ->
                 when (effect) {
-                    is ShortsUiEffect.Share -> {
-                        val send = Intent(Intent.ACTION_SEND)
-                            .setType("text/plain")
-                            .putExtra(Intent.EXTRA_SUBJECT, effect.video.title)
-                            .putExtra(Intent.EXTRA_TEXT, "${effect.video.title}\n${effect.video.videoUrl}")
-                        context.startActivity(Intent.createChooser(send, shareChooserTitle))
-                    }
+                    is ShortsUiEffect.Share -> share(
+                        effect.video.title,
+                        effect.video.title + "\n" + effect.video.videoUrl,
+                    )
                 }
             }
         }
@@ -105,7 +112,7 @@ fun ShortsRoute(
 @Composable
 fun ShortsScreen(
     uiState: ShortsUiState,
-    playerFor: (index: Int) -> Player?,
+    playerFor: (index: Int) -> VideoSurfaceHandle?,
     onEvent: (ShortsUiEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -119,13 +126,13 @@ fun ShortsScreen(
         }
 
         ShortsUiState.Empty -> MessageContent(
-            message = stringResource(R.string.shorts_empty),
+            message = stringResource(Res.string.shorts_empty),
             onRetry = { onEvent(ShortsUiEvent.Retry) },
             modifier = screenModifier,
         )
 
         is ShortsUiState.Error -> MessageContent(
-            message = uiState.message ?: stringResource(R.string.shorts_error_generic),
+            message = uiState.message ?: stringResource(Res.string.shorts_error_generic),
             onRetry = { onEvent(ShortsUiEvent.Retry) },
             modifier = screenModifier,
         )
@@ -142,7 +149,7 @@ fun ShortsScreen(
 @Composable
 private fun ShortsPager(
     state: ShortsUiState.Success,
-    playerFor: (index: Int) -> Player?,
+    playerFor: (index: Int) -> VideoSurfaceHandle?,
     onEvent: (ShortsUiEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -193,7 +200,7 @@ private fun ShortsPager(
 @Composable
 private fun ShortPage(
     video: Video,
-    player: Player?,
+    player: VideoSurfaceHandle?,
     isActive: Boolean,
     isPaused: Boolean,
     isLiked: Boolean,
@@ -221,7 +228,7 @@ private fun ShortPage(
         )
 
         if (player != null) {
-            ShortVideoSurface(player = player, modifier = Modifier.fillMaxSize())
+            VideoSurface(handle = player, modifier = Modifier.fillMaxSize())
         }
 
         // Scrim so overlay text stays readable on bright frames.
@@ -237,7 +244,7 @@ private fun ShortPage(
             actions = listOf(
                 ShortsAction(
                     icon = if (isLiked) StreamlyIcons.HeartFilled else StreamlyIcons.Heart,
-                    contentDescription = stringResource(if (isLiked) R.string.shorts_unlike else R.string.shorts_like),
+                    contentDescription = stringResource(if (isLiked) Res.string.shorts_unlike else Res.string.shorts_like),
                     count = video.stats.likeCount + if (isLiked) 1 else 0,
                     active = isLiked,
                     onClick = { onEvent(ShortsUiEvent.OnLikeClick(video.id)) },
@@ -247,19 +254,19 @@ private fun ShortPage(
                 // tapping Comments paused the video. A no-op click gives the ripple and nothing else.
                 ShortsAction(
                     icon = StreamlyIcons.Comment,
-                    contentDescription = stringResource(R.string.shorts_comments),
+                    contentDescription = stringResource(Res.string.shorts_comments),
                     count = video.stats.commentCount,
                     onClick = {},
                 ),
                 ShortsAction(
                     icon = StreamlyIcons.Share,
-                    contentDescription = stringResource(R.string.shorts_share),
+                    contentDescription = stringResource(Res.string.shorts_share),
                     count = 0,
                     onClick = { onEvent(ShortsUiEvent.OnShareClick(video)) },
                 ),
                 ShortsAction(
                     icon = if (isSaved) StreamlyIcons.SaveFilled else StreamlyIcons.Save,
-                    contentDescription = stringResource(if (isSaved) R.string.shorts_unsave else R.string.shorts_save),
+                    contentDescription = stringResource(if (isSaved) Res.string.shorts_unsave else Res.string.shorts_save),
                     count = 0,
                     active = isSaved,
                     onClick = { onEvent(ShortsUiEvent.OnSaveClick(video.id)) },
@@ -309,7 +316,7 @@ private fun ShortPage(
             ) {
                 Icon(
                     imageVector = StreamlyIcons.Play,
-                    contentDescription = stringResource(R.string.shorts_play),
+                    contentDescription = stringResource(Res.string.shorts_play),
                     tint = StreamlyBrand.OnMedia,
                     modifier = Modifier.size(32.dp),
                 )
@@ -318,30 +325,6 @@ private fun ShortPage(
     }
 }
 
-/** Controller-less [PlayerView] cropped to fill the page, as in other vertical video feeds. */
-@androidx.annotation.OptIn(UnstableApi::class)
-@Composable
-private fun ShortVideoSurface(
-    player: Player,
-    modifier: Modifier = Modifier,
-) {
-    AndroidView(
-        factory = { context ->
-            PlayerView(context).apply {
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                // Let the thumbnail show through until the first frame renders.
-                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-                keepScreenOn = true
-                // In-stream captions would collide with the metadata overlay.
-                subtitleView?.visibility = android.view.View.GONE
-            }
-        },
-        update = { view -> view.player = player },
-        onRelease = { view -> view.player = null },
-        modifier = modifier,
-    )
-}
 
 @Composable
 private fun MessageContent(
@@ -364,7 +347,7 @@ private fun MessageContent(
         )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
-            Text(stringResource(R.string.shorts_retry))
+            Text(stringResource(Res.string.shorts_retry))
         }
     }
 }

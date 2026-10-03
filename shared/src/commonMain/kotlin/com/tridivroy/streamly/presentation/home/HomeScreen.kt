@@ -22,16 +22,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import com.tridivroy.streamly.shared.resources.Res
+import com.tridivroy.streamly.shared.resources.home_category_all
+import com.tridivroy.streamly.shared.resources.home_empty
+import com.tridivroy.streamly.shared.resources.home_error_generic
+import com.tridivroy.streamly.shared.resources.home_offline_tag
+import com.tridivroy.streamly.shared.resources.home_refresh
+import com.tridivroy.streamly.shared.resources.home_retry
+import com.tridivroy.streamly.shared.resources.home_views
+import com.tridivroy.streamly.shared.resources.profile_open
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
+import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.tridivroy.streamly.core.di.SharedModule
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.tridivroy.streamly.R
 import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.core.theme.StreamlyTheme
 import com.tridivroy.streamly.core.theme.TextMuted
@@ -39,6 +50,7 @@ import com.tridivroy.streamly.domain.model.Channel
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.presentation.common.safeTopPadding
+import com.tridivroy.streamly.shared.currentTimeMillis
 import com.tridivroy.streamly.presentation.home.components.CategoryChips
 import com.tridivroy.streamly.presentation.home.components.HomeTopBar
 import com.tridivroy.streamly.presentation.home.components.TopBarAction
@@ -49,7 +61,7 @@ import com.tridivroy.streamly.presentation.home.components.VideoCard
 fun HomeRoute(
     onNavigateToPlayer: (videoId: String) -> Unit,
     onNavigateToProfile: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentOnNavigateToPlayer by rememberUpdatedState(onNavigateToPlayer)
@@ -91,12 +103,12 @@ fun HomeScreen(
             actions = listOf(
                 TopBarAction(
                     icon = StreamlyIcons.Refresh,
-                    contentDescription = stringResource(R.string.home_refresh),
+                    contentDescription = stringResource(Res.string.home_refresh),
                     onClick = { onEvent(HomeUiEvent.Refresh) },
                 ),
                 TopBarAction(
                     icon = StreamlyIcons.User,
-                    contentDescription = stringResource(R.string.profile_open),
+                    contentDescription = stringResource(Res.string.profile_open),
                     onClick = onProfileClick,
                 ),
             ),
@@ -108,7 +120,7 @@ fun HomeScreen(
             }
 
             is HomeUiState.Error -> ErrorContent(
-                message = uiState.message ?: stringResource(R.string.home_error_generic),
+                message = uiState.message ?: stringResource(Res.string.home_error_generic),
                 onRetry = { onEvent(HomeUiEvent.Refresh) },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -145,7 +157,7 @@ private fun SuccessContent(
         if (videos.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = stringResource(R.string.home_empty),
+                    text = stringResource(Res.string.home_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextMuted,
                 )
@@ -187,7 +199,7 @@ private fun ErrorContent(
         )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
-            Text(stringResource(R.string.home_retry))
+            Text(stringResource(Res.string.home_retry))
         }
     }
 }
@@ -203,7 +215,7 @@ private val previewVideos = listOf(
         duration = 754,
         isShort = false,
         channel = Channel("Nordlys Films", "nordlys", "", 412_000),
-        stats = VideoStats(1_200_000, 48_200, 3_104, System.currentTimeMillis() / 1000 - 3 * 86_400),
+        stats = VideoStats(1_200_000, 48_200, 3_104, currentTimeMillis() / 1000 - 3 * 86_400),
     ),
     Video(
         id = "2",
@@ -215,7 +227,7 @@ private val previewVideos = listOf(
         duration = 1268,
         isShort = false,
         channel = Channel("Slow Workshop", "slowworkshop", "", 198_000),
-        stats = VideoStats(640_000, 21_400, 0, System.currentTimeMillis() / 1000 - 7 * 86_400),
+        stats = VideoStats(640_000, 21_400, 0, currentTimeMillis() / 1000 - 7 * 86_400),
     ),
 )
 
@@ -240,5 +252,22 @@ private fun HomeScreenSuccessPreview() {
 private fun HomeScreenErrorPreview() {
     StreamlyTheme(darkTheme = true) {
         HomeScreen(uiState = HomeUiState.Error(message = null), onEvent = {}, onProfileClick = {})
+    }
+}
+
+/**
+ * Builds [HomeViewModel] from the shared service locator.
+ *
+ * This replaces `hiltViewModel()`: Hilt is Android-only, so a shared screen cannot ask for its
+ * ViewModel that way. `viewModel(factory = …)` is the multiplatform equivalent and still scopes the
+ * instance to the host's `ViewModelStoreOwner`, so it survives rotation on Android exactly as the
+ * Hilt-provided one did.
+ */
+val HomeViewModelFactory = viewModelFactory {
+    initializer {
+        HomeViewModel(
+            videoRepository = SharedModule.videoRepository,
+            downloadRepository = SharedModule.downloadRepository,
+        )
     }
 }

@@ -17,7 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.tridivroy.streamly.core.theme.StreamlyTheme
+import com.tridivroy.streamly.presentation.app.App
 import com.tridivroy.streamly.domain.model.ThemeMode
 import com.tridivroy.streamly.presentation.navigation.StreamlyNavGraph
 import com.tridivroy.streamly.presentation.splash.StreamlySplash
@@ -55,7 +55,8 @@ class MainActivity : ComponentActivity() {
             // Saveable so a rotation during the animation does not replay it from the start.
             var splashShown by rememberSaveable { mutableStateOf(false) }
 
-            StreamlyTheme(darkTheme = darkTheme) {
+            // The theme now comes from :shared, so Android and iOS cannot drift apart on it.
+            App(darkTheme = darkTheme) {
                 StreamlyNavGraph(windowSizeClass = calculateWindowSizeClass(this))
                 if (!splashShown) {
                     StreamlySplash(onFinished = { splashShown = true })

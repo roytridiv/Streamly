@@ -9,6 +9,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import com.tridivroy.streamly.domain.model.Video
+import com.tridivroy.streamly.presentation.common.VideoSurfaceHandle
+import com.tridivroy.streamly.presentation.shorts.ShortsPlayerController
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
@@ -23,7 +25,7 @@ import javax.inject.Inject
 class ShortsPlayerPool @Inject constructor(
     @ApplicationContext context: Context,
     mediaSourceFactory: MediaSource.Factory,
-) {
+) : ShortsPlayerController {
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(C.USAGE_MEDIA)
         .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -42,14 +44,14 @@ class ShortsPlayerPool @Inject constructor(
     private val assignedIndex = IntArray(POOL_SIZE) { NO_INDEX }
 
     /** The player showing [index], or `null` if that page isn't loaded into the pool. */
-    fun playerFor(index: Int): Player? =
+    override fun playerFor(index: Int): VideoSurfaceHandle? =
         players[slotOf(index)].takeIf { assignedIndex[slotOf(index)] == index }
 
     /**
      * Plays [activeIndex] and preloads its neighbour (next page, or previous on the last page).
      * @return the preloaded index, or `null` if there is no neighbour.
      */
-    fun activate(activeIndex: Int, videos: List<Video>): Int? {
+    override fun activate(activeIndex: Int, videos: List<Video>): Int? {
         load(activeIndex, videos).apply { playWhenReady = true }
 
         val preloadIndex = when {
@@ -66,15 +68,15 @@ class ShortsPlayerPool @Inject constructor(
         return preloadIndex
     }
 
-    fun play(index: Int) {
+    override fun play(index: Int) {
         playerFor(index)?.play()
     }
 
-    fun pauseAll() {
+    override fun pauseAll() {
         players.forEach { it.pause() }
     }
 
-    fun release() {
+    override fun release() {
         players.forEach { it.release() }
         assignedIndex.fill(NO_INDEX)
     }

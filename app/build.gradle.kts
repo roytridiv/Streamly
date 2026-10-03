@@ -70,15 +70,20 @@ dependencies {
     // version for both platforms. Only the Hilt bridge in SharedBridgeModule still names the type.
     implementation(libs.ktor.client.core)
 
-    // Media3 (ExoPlayer, HLS, Download)
-    val media3Version = "1.4.1"
-    implementation("androidx.media3:media3-exoplayer:$media3Version")
-    implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
-    implementation("androidx.media3:media3-ui:$media3Version")
-    implementation("androidx.media3:media3-session:$media3Version")
+    // Was arriving transitively through Ktor until :shared took that over. DownloadTracker stores
+    // video metadata in each download request with it, and the Nav3 keys are .
+    implementation(libs.kotlinx.serialization.json)
 
-    // Image Loading (Coil for Compose)
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    // Media3 (ExoPlayer, HLS, Download)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
+
+    // Image Loading. Coil 3 (the multiplatform line) because :shared uses it too — two Coil majors
+    // in one process would mean two independent memory and disk caches for the same thumbnails.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor3)
 
     // Hilt Dependency Injection
     implementation("com.google.dagger:hilt-android:2.60.1")
