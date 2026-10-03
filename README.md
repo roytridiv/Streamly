@@ -388,12 +388,17 @@ app/src/main/java/com/tridivroy/streamly/
 
 ## 🤖 AI-Assisted Development Workflow
 
-Streamly was built **agentically**: AI coding assistants wrote most of the code, and a human engineer set direction, reviewed every change, and tested on real devices.
+Streamly was built **agentically**: AI assistants wrote most of the code, and a human engineer set direction, reviewed every change, and tested on real devices.
+
+> 🤝 **Co-authored with Claude.** Most of the codebase was written together with **Claude** (Anthropic). Claude Code made the bulk of the code changes, and the human engineer directed, reviewed and verified each one. The commit history doesn't carry `Co-Authored-By: Claude` trailers, so this README and the logs below are the record of that collaboration.
 
 ### The tools
 
-- **Claude Code (CLI)** was the main pair-programmer, working directly in the repository: reading code, making edits, running Gradle builds, and driving physical devices over ADB.
-- **Gemini** was also used as a copilot.
+| Tool | Role |
+|---|---|
+| **Claude Code (CLI)** | Main pair-programmer and primary co-author. Worked directly in the repository: reading code, making edits, running Gradle builds, and driving physical devices over ADB for smoke tests. |
+| **Claude Design** | Designed the **Nordic Mint** UI: the design handoff (an HTML prototype plus a spec of colours, type, icons and components) that the app's screens are built from. |
+| **Gemini** | Used alongside as an additional copilot. |
 
 ### What the AI was used for
 
