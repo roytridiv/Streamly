@@ -94,8 +94,6 @@ fun PlayerRoute(
     windowSizeClass: WindowSizeClass,
     onBack: () -> Unit,
     onNavigateToVideo: (videoId: String) -> Unit,
-    /** Lets the nav graph drop the bottom bar for fullscreen playback. */
-    onFullscreenChange: (Boolean) -> Unit = {},
     viewModel: PlayerViewModel = hiltViewModel<PlayerViewModel, PlayerViewModel.Factory>(
         key = videoId,
         creationCallback = { factory -> factory.create(videoId) },
@@ -149,7 +147,6 @@ fun PlayerRoute(
             windowSizeClass = windowSizeClass,
             onEvent = onEvent,
             onBack = onBack,
-            onFullscreenChange = onFullscreenChange,
         )
         StreamlyToastHost(state = toastState, modifier = Modifier.align(Alignment.BottomCenter))
     }
@@ -162,7 +159,6 @@ fun PlayerScreen(
     windowSizeClass: WindowSizeClass,
     onEvent: (PlayerUiEvent) -> Unit,
     onBack: () -> Unit,
-    onFullscreenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isCompactHeight = windowSizeClass.heightSizeClass == WindowHeightSizeClass.Compact
@@ -198,14 +194,6 @@ fun PlayerScreen(
     // Orientation and the system bars are set and cleared together, in one place, for every exit
     // path there is: the button, a rotation, system back, or navigating off the Player entirely.
     FullscreenWindowEffect(isFullscreen = isFullscreen, lockLandscape = lockedLandscape)
-
-    // Reported up so the nav graph can hide the bottom bar, and reset on the way out so leaving the
-    // Player mid-fullscreen never leaves the bar hidden on the tab underneath.
-    val currentOnFullscreenChange by rememberUpdatedState(onFullscreenChange)
-    DisposableEffect(isFullscreen) {
-        currentOnFullscreenChange(isFullscreen)
-        onDispose { currentOnFullscreenChange(false) }
-    }
 
     val success = uiState as? PlayerUiState.Success
     if (success != null && isFullscreen) {

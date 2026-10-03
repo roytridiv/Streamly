@@ -19,9 +19,6 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -69,9 +66,8 @@ private enum class TopLevelDestination(
  * playback. The tab UI is a bottom bar on compact widths and a rail on medium/expanded (tablets,
  * unfolded foldables).
  *
- * The bar stays up on the Player too, so a tab is always one tap away while something is playing; it
- * only disappears for fullscreen playback, Onboarding and Profile. The tab it highlights is the one
- * the Player was opened from, found by scanning down the stack.
+ * The bar is shown on the top-level tabs only. The Player, Onboarding and Profile hide it and use the
+ * full height; leaving the Player hands the video to the mini-player.
  *
  * The mini-player docks above the bar on Home and Downloads — not on Shorts, which is edge-to-edge,
  * and not on the Player, where the real player is already on screen. Its state and the Downloads badge
@@ -100,27 +96,19 @@ fun StreamlyNavGraph(
 
     val topKey = backStack.lastOrNull()
     val isOnTopLevelTab = TopLevelDestination.entries.any { it.key == topKey }
-    val isOnPlayer = topKey is PlayerKey
 
-    /*
-     * Which tab is highlighted, found by scanning *down* the stack rather than reading its top.
-     *
-     * The Player is pushed on top of whichever tab opened it, so on `[Home, Player]` the answer is
-     * Home. Reading only the top would leave every item unselected while a video plays.
-     */
+    // Which tab is highlighted: the topmost tab in the stack, so a screen pushed over a tab still
+    // counts as being under it.
     val activeTab = backStack
         .lastOrNull { key -> TopLevelDestination.entries.any { it.key == key } }
         ?.let { key -> TopLevelDestination.entries.first { it.key == key } }
 
-    // Fullscreen is the Player's own state, reported up because only the nav graph can hide the bar.
-    var isPlayerFullscreen by remember { mutableStateOf(false) }
-
     /*
-     * The bar stays up on the Player so tabs are reachable while something plays, and goes away for
-     * fullscreen playback and for Onboarding and Profile, which are full-screen flows that own their
-     * own navigation.
+     * Only the top-level tabs show the bar. The Player, Onboarding and Profile are full-screen flows
+     * with their own back control, so the video gets the full height. Leaving the Player keeps the
+     * video going: the mini-player picks it up on Home and Downloads.
      */
-    val showNavBar = isOnTopLevelTab || (isOnPlayer && !isPlayerFullscreen)
+    val showNavBar = isOnTopLevelTab
 
     val nowPlaying by mainViewModel.nowPlaying.collectAsStateWithLifecycle()
     val activeDownloads by mainViewModel.activeDownloadCount.collectAsStateWithLifecycle()
@@ -215,9 +203,7 @@ fun StreamlyNavGraph(
                                     onNavigateToVideo = { videoId ->
                                         backStack.removeLastOrNull()
                                         backStack.add(PlayerKey(videoId))
-                                    },
-                                    onFullscreenChange = { fullscreen -> isPlayerFullscreen = fullscreen },
-                                )
+                                    },                                )
                             }
                         },
                     )
