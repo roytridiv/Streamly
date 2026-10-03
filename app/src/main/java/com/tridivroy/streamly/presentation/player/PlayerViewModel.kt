@@ -2,6 +2,7 @@ package com.tridivroy.streamly.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -112,6 +113,8 @@ class PlayerViewModel @AssistedInject constructor(
             }
 
             PlayerUiEvent.OnToggleMute -> toggleMute()
+            PlayerUiEvent.OnSeekForward -> seekForward()
+            PlayerUiEvent.OnSeekBackward -> seekBackward()
             PlayerUiEvent.Retry -> loadVideo()
             PlayerUiEvent.OnDownloadClick -> toggleDownload()
             is PlayerUiEvent.OnRelatedVideoClick -> viewModelScope.launch {
@@ -134,6 +137,17 @@ class PlayerViewModel @AssistedInject constructor(
     }
 
     fun toggleMute() = setMuted(exoPlayer.volume > 0f)
+
+    /** Jumps ahead, stopping at the end. Before the duration is known, the jump is left unclamped. */
+    fun seekForward(millis: Long = SEEK_STEP_MS) {
+        val target = exoPlayer.currentPosition + millis
+        val duration = exoPlayer.duration
+        exoPlayer.seekTo(if (duration == C.TIME_UNSET) target else target.coerceAtMost(duration))
+    }
+
+    fun seekBackward(millis: Long = SEEK_STEP_MS) {
+        exoPlayer.seekTo((exoPlayer.currentPosition - millis).coerceAtLeast(0L))
+    }
 
     private fun loadVideo() {
         loadJob?.cancel()
@@ -278,5 +292,6 @@ class PlayerViewModel @AssistedInject constructor(
 
     private companion object {
         const val MAX_RELATED_VIDEOS = 10
+        const val SEEK_STEP_MS = 10_000L
     }
 }

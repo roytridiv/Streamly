@@ -48,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
@@ -71,8 +72,8 @@ import kotlinx.coroutines.delay
  * mint ambient glow, with the existing Media3 [PlayerView] inside it.
  *
  * Everything drawn on top — the watermark, the centre play/pause and the scrubber — is Compose over
- * the video surface, so the Media3 setup is untouched; only [onTogglePlay], [onSeekTo] and
- * [onToggleMute] reach back into the player.
+ * the video surface, so the Media3 setup is untouched; only [onTogglePlay], [onSeekTo],
+ * [onSeekBackward], [onSeekForward] and [onToggleMute] reach back into the player.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -85,6 +86,8 @@ fun FloatingPlayerViewport(
     onToggleFullscreen: () -> Unit,
     isMuted: Boolean,
     onToggleMute: () -> Unit,
+    onSeekBackward: () -> Unit,
+    onSeekForward: () -> Unit,
     modifier: Modifier = Modifier,
     isFullscreen: Boolean = false,
     controls: PlayerControlsState = rememberPlayerControlsState(),
@@ -167,13 +170,43 @@ fun FloatingPlayerViewport(
             exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.Center),
         ) {
-            CentrePlayButton(
-                isPlaying = progress.isPlaying,
-                onClick = {
-                    onTogglePlay()
-                    controls.keepVisible()
-                },
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+            ) {
+                FrostedCircleButton(
+                    icon = StreamlyIcons.Replay10,
+                    contentDescription = stringResource(R.string.player_seek_back),
+                    size = 44.dp,
+                    iconSize = 22.dp,
+                    onClick = {
+                        onSeekBackward()
+                        controls.keepVisible()
+                    },
+                )
+                FrostedCircleButton(
+                    icon = if (progress.isPlaying) StreamlyIcons.Pause else StreamlyIcons.Play,
+                    contentDescription = stringResource(
+                        if (progress.isPlaying) R.string.player_pause else R.string.player_play,
+                    ),
+                    size = 54.dp,
+                    iconSize = 22.dp,
+                    onClick = {
+                        onTogglePlay()
+                        controls.keepVisible()
+                    },
+                )
+                FrostedCircleButton(
+                    icon = StreamlyIcons.Forward10,
+                    contentDescription = stringResource(R.string.player_seek_forward),
+                    size = 44.dp,
+                    iconSize = 22.dp,
+                    onClick = {
+                        onSeekForward()
+                        controls.keepVisible()
+                    },
+                )
+            }
         }
 
         AnimatedVisibility(
@@ -211,16 +244,19 @@ fun FloatingPlayerViewport(
     }
 }
 
-/** 54dp frosted circle over the video. */
+/** Frosted circle over the video: 54dp for play/pause, 44dp for the seek buttons either side. */
 @Composable
-private fun CentrePlayButton(
-    isPlaying: Boolean,
+private fun FrostedCircleButton(
+    icon: ImageVector,
+    contentDescription: String,
+    size: Dp,
+    iconSize: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .size(54.dp)
+            .size(size)
             .clip(CircleShape)
             .background(StreamlyBrand.FrostedSurface)
             .border(1.dp, StreamlyBrand.OnMedia.copy(alpha = 0.25f), CircleShape)
@@ -230,12 +266,10 @@ private fun CentrePlayButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = if (isPlaying) StreamlyIcons.Pause else StreamlyIcons.Play,
-            contentDescription = stringResource(
-                if (isPlaying) R.string.player_pause else R.string.player_play,
-            ),
+            imageVector = icon,
+            contentDescription = contentDescription,
             tint = StreamlyBrand.OnMedia,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(iconSize),
         )
     }
 }

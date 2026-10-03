@@ -13,6 +13,10 @@ sealed interface PlayerUiEvent {
     data object OnSubscribeClick : PlayerUiEvent
     data object OnShareClick : PlayerUiEvent
     data object OnToggleMute : PlayerUiEvent
+    /** +10s, clamped to the end. */
+    data object OnSeekForward : PlayerUiEvent
+    /** -10s, clamped to the start. */
+    data object OnSeekBackward : PlayerUiEvent
 }
 
 /** One-off actions sent from [PlayerViewModel] to [PlayerScreen], consumed exactly once. */

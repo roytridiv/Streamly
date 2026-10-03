@@ -78,6 +78,8 @@
     <string name="player_pause">Pause</string>
     <string name="player_mute">Mute</string>
     <string name="player_unmute">Unmute</string>
+    <string name="player_seek_back">Back 10 seconds</string>
+    <string name="player_seek_forward">Forward 10 seconds</string>
     <string name="player_share">Share</string>
     <string name="player_link_copied">Link copied</string>
     <string name="player_offline_ready">Offline ready</string>

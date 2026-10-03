@@ -488,3 +488,31 @@ Implement Mute / Unmute (audio volume control) functionality for the Android vid
 ````text
 issue : when the video is in landscape the mute button goes overlapped on the like button
 ````
+
+## 2026-10-04 01:49:11 BST · session `9e48e493`
+
+````text
+why isnt mp4 videos are playing here ?
+````
+
+## 2026-10-04 02:25:23 BST · session `9e48e493`
+
+````text
+
+
+<pasted_content id="ceab">
+implement 10-second Seek Forward (+10s) and Seek Backward (-10s) controls for the Android video player:
+
+1. Player Controller / ViewModel Logic:
+   - Add `seekForward(millis: Long = 10000)` and `seekBackward(millis: Long = 10000)` methods to your player controller / ViewModel (e.g., `PlayerViewModel` or `ShortsPlayerController`).
+   - Implement the logic using ExoPlayer:
+     * Fast Forward: `player.seekTo((player.currentPosition + millis).coerceAtMost(player.duration))`
+     * Rewind: `player.seekTo((player.currentPosition - millis).coerceAtLeast(0))`
+
+2. UI Overlay Controls:
+   - Add two action buttons on the video player overlay:
+     * Rewind 10s button (icon: Icons.Default.Replay10 or similar vector) to the left of Play/Pause.
+     * Forward 10s button (icon: Icons.Default.Forward10 or similar vector) to the right of Play/Pause.
+   - Connect the click events of these buttons to `seekBackward()` and `seekForward()`.
+</pasted_content id="ceab">
+````

@@ -124,6 +124,16 @@ object StreamlyIcons {
         stroked("Close", "M6 6l12 12M18 6 6 18", strokeWidth = 1.8f)
     }
 
+    /** An anticlockwise arrow around "10" — back ten seconds. */
+    val Replay10: ImageVector by lazy {
+        stroked("Replay10", "M12 4a8 8 0 1 1-7.6 5.5M14.5 1.5 12 4l2.5 2.5" + TEN_PATH, strokeWidth = 1.7f)
+    }
+
+    /** The same arrow turning clockwise — forward ten seconds. */
+    val Forward10: ImageVector by lazy {
+        stroked("Forward10", "M12 4a8 8 0 1 0 7.6 5.5M9.5 1.5 12 4l-2.5 2.5" + TEN_PATH, strokeWidth = 1.7f)
+    }
+
     /** Speaker with two sound waves — audio on. */
     val VolumeOn: ImageVector by lazy {
         stroked("VolumeOn", SPEAKER_PATH + "M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8", strokeWidth = 1.8f)
@@ -202,6 +212,10 @@ object StreamlyIcons {
 
     private const val HEART_PATH =
         "M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"
+
+    /** "10" drawn as strokes inside the seek arrows, centred on the circle. */
+    private const val TEN_PATH =
+        "M8.6 10.6 9.6 9.8v5.4M13 9.8h0.8a1.2 1.2 0 0 1 1.2 1.2v3a1.2 1.2 0 0 1-1.2 1.2H13a1.2 1.2 0 0 1-1.2-1.2v-3A1.2 1.2 0 0 1 13 9.8z"
 
     private const val SPEAKER_PATH = "M4 9.5h3.5L12 5.5v13l-4.5-4H4z"
 
