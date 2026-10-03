@@ -31,6 +31,8 @@
     <string name="shorts_following">Following</string>
     <string name="shorts_share_chooser">Share video</string>
     <string name="shorts_play">Play</string>
+    <string name="shorts_mute">Mute</string>
+    <string name="shorts_unmute">Unmute</string>
     <string name="shorts_retry">Retry</string>
     <string name="shorts_empty">No shorts yet.</string>
     <string name="shorts_error_generic">Couldn\u2019t load shorts. Check your connection and try again.</string>
@@ -74,6 +76,8 @@
     <string name="player_fullscreen_exit">Exit fullscreen</string>
     <string name="player_play">Play</string>
     <string name="player_pause">Pause</string>
+    <string name="player_mute">Mute</string>
+    <string name="player_unmute">Unmute</string>
     <string name="player_share">Share</string>
     <string name="player_link_copied">Link copied</string>
     <string name="player_offline_ready">Offline ready</string>

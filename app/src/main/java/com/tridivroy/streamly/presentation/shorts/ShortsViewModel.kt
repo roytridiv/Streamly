@@ -45,6 +45,9 @@ class ShortsViewModel @Inject constructor(
     /** Persisted engagement (DataStore); kept so a (re)load shows likes and saves immediately. */
     private var engagement = Engagement()
 
+    /** Kept outside the UI state for the same reason: a Retry rebuilds the state, not the pool. */
+    private var isMuted = false
+
     init {
         observeEngagement()
         loadShorts()
@@ -61,6 +64,8 @@ class ShortsViewModel @Inject constructor(
                 if (state.isPaused) playerPool.play(state.activeIndex) else playerPool.pauseAll()
                 state.copy(isPaused = !state.isPaused)
             }
+
+            ShortsUiEvent.OnToggleMute -> toggleMute()
 
             // The state updates via observeEngagement() once DataStore has persisted the change.
             is ShortsUiEvent.OnLikeClick -> viewModelScope.launch {
@@ -92,6 +97,15 @@ class ShortsViewModel @Inject constructor(
         }
     }
 
+    /** Applied to the whole pool, so it holds across swipes and survives a reload of the feed. */
+    fun setMuted(muted: Boolean) {
+        isMuted = muted
+        playerPool.setMuted(muted)
+        updateSuccess { it.copy(isMuted = muted) }
+    }
+
+    fun toggleMute() = setMuted(!isMuted)
+
     private fun loadShorts() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
@@ -109,6 +123,7 @@ class ShortsViewModel @Inject constructor(
                             likedIds = engagement.liked,
                             savedIds = engagement.saved,
                             followedChannels = engagement.followed,
+                            isMuted = isMuted,
                         )
                     }
                 },

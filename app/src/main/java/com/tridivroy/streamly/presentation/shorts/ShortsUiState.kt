@@ -14,6 +14,8 @@ sealed interface ShortsUiState {
         val preloadIndex: Int? = null,
         /** `true` only when the user tapped to pause; lifecycle pauses don't set it. */
         val isPaused: Boolean = false,
+        /** Audio off for the whole feed; carries across swipes rather than resetting per page. */
+        val isMuted: Boolean = false,
         /** Favourited video IDs, persisted in DataStore. */
         val likedIds: Set<String> = emptySet(),
         /** Saved video IDs, persisted in DataStore. The rail's Save action, separate from Like. */

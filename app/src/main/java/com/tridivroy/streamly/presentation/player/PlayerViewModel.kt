@@ -76,7 +76,17 @@ class PlayerViewModel @AssistedInject constructor(
                 _uiState.value = PlayerUiState.Error(error.localizedMessage)
             }
         }
+
+        // The player's volume is the source of truth for isMuted; setMuted only ever changes the volume.
+        override fun onVolumeChanged(volume: Float) {
+            _uiState.update { state ->
+                if (state is PlayerUiState.Success) state.copy(isMuted = volume == 0f) else state
+            }
+        }
     }
+
+    /** Volume to go back to on unmute: the last non-zero level the player was at. */
+    private var unmutedVolume = 1f
 
     init {
         exoPlayer.addListener(playerListener)
@@ -101,6 +111,7 @@ class PlayerViewModel @AssistedInject constructor(
                 _effects.send(PlayerUiEffect.CopyLink(video.videoUrl))
             }
 
+            PlayerUiEvent.OnToggleMute -> toggleMute()
             PlayerUiEvent.Retry -> loadVideo()
             PlayerUiEvent.OnDownloadClick -> toggleDownload()
             is PlayerUiEvent.OnRelatedVideoClick -> viewModelScope.launch {
@@ -108,6 +119,21 @@ class PlayerViewModel @AssistedInject constructor(
             }
         }
     }
+
+    /**
+     * Mutes through the volume rather than by disabling the audio track, so unmuting is instant and
+     * never re-selects tracks. The state follows via [Player.Listener.onVolumeChanged].
+     */
+    fun setMuted(muted: Boolean) {
+        if (muted) {
+            exoPlayer.volume.takeIf { it > 0f }?.let { unmutedVolume = it }
+            exoPlayer.volume = 0f
+        } else {
+            exoPlayer.volume = unmutedVolume
+        }
+    }
+
+    fun toggleMute() = setMuted(exoPlayer.volume > 0f)
 
     private fun loadVideo() {
         loadJob?.cancel()
@@ -127,6 +153,8 @@ class PlayerViewModel @AssistedInject constructor(
                                 download = download,
                                 isLiked = video.id in prefs.favoriteVideoIds,
                                 isSubscribed = video.channel.handle.takeIf { it.isNotBlank() } in prefs.subscribedChannels,
+                                // The player is shared, so a mute set on the previous video still holds.
+                                isMuted = exoPlayer.volume == 0f,
                             )
                         }
                     },

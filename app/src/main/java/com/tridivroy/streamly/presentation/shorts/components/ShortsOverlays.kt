@@ -44,11 +44,13 @@ import com.tridivroy.streamly.core.theme.StreamlyType
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.presentation.common.formatCount
 
-/** The glowing bolt, "Shorts", and the page position on the right. */
+/** The glowing bolt, "Shorts", and the mute toggle and page position on the right. */
 @Composable
 fun ShortsHeader(
     pageNumber: Int,
     pageCount: Int,
+    isMuted: Boolean,
+    onToggleMute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -73,10 +75,41 @@ fun ShortsHeader(
                 color = StreamlyBrand.OnMedia,
             )
         }
-        Text(
-            text = "$pageNumber / $pageCount",
-            style = StreamlyType.Eyebrow,
-            color = StreamlyBrand.OnMediaVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MuteButton(isMuted = isMuted, onClick = onToggleMute)
+            Text(
+                text = "$pageNumber / $pageCount",
+                style = StreamlyType.Eyebrow,
+                color = StreamlyBrand.OnMediaVariant,
+            )
+        }
+    }
+}
+
+/** A smaller frosted tile in the rail's style. It consumes its own tap, so it never toggles playback. */
+@Composable
+private fun MuteButton(
+    isMuted: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(StreamlyShape.FrostedTile)
+            .background(StreamlyBrand.FrostedSurface)
+            .border(1.dp, StreamlyBrand.FrostedBorder, StreamlyShape.FrostedTile)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = if (isMuted) StreamlyIcons.VolumeOff else StreamlyIcons.VolumeOn,
+            contentDescription = stringResource(if (isMuted) R.string.shorts_unmute else R.string.shorts_mute),
+            tint = StreamlyBrand.OnMedia,
+            modifier = Modifier.size(20.dp),
         )
     }
 }

@@ -17,6 +17,8 @@ sealed interface PlayerUiState {
         val isLiked: Boolean = false,
         /** The user subscribes to this video's channel. */
         val isSubscribed: Boolean = false,
+        /** Mirrors the shared player's volume, so it carries over to the next video and the mini-player. */
+        val isMuted: Boolean = false,
     ) : PlayerUiState {
         /**
          * Like count with the user's own optimistic like folded in, so tapping Like moves the number

@@ -216,6 +216,7 @@ fun PlayerScreen(
             state = success,
             player = player,
             onToggleFullscreen = toggleFullscreen,
+            onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
             modifier = modifier,
         )
     } else {
@@ -241,6 +242,7 @@ private fun FullscreenPlayer(
     state: PlayerUiState.Success,
     player: Player,
     onToggleFullscreen: () -> Unit,
+    onToggleMute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val progress by rememberPlaybackProgress(player)
@@ -257,6 +259,8 @@ private fun FullscreenPlayer(
             controls.keepVisible()
         },
         onToggleFullscreen = onToggleFullscreen,
+        isMuted = state.isMuted,
+        onToggleMute = onToggleMute,
         isFullscreen = true,
         controls = controls,
         modifier = modifier
@@ -347,6 +351,8 @@ private fun SuccessContent(
             onTogglePlay = togglePlay,
             onSeekTo = seekToMs,
             onToggleFullscreen = onToggleFullscreen,
+            isMuted = state.isMuted,
+            onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
             controls = controls,
             modifier = viewportModifier,
         )

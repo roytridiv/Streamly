@@ -12,6 +12,7 @@ sealed interface PlayerUiEvent {
     /** Optimistic toggle, persisted against the channel handle. */
     data object OnSubscribeClick : PlayerUiEvent
     data object OnShareClick : PlayerUiEvent
+    data object OnToggleMute : PlayerUiEvent
 }
 
 /** One-off actions sent from [PlayerViewModel] to [PlayerScreen], consumed exactly once. */

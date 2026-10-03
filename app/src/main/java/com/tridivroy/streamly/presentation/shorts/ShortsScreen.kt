@@ -1,6 +1,7 @@
 package com.tridivroy.streamly.presentation.shorts
 
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -178,14 +180,21 @@ private fun ShortsPager(
             )
         }
 
+        // In landscape the action rail is taller than the space beside the caption and runs up to the
+        // top edge, so the header stops short of the rail's column instead of drawing under it.
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val headerEndPadding = if (isLandscape) RAIL_CLEARANCE else 18.dp
+
         // Header and position sit above the pager so they do not travel with the pages.
         ShortsHeader(
             pageNumber = state.activeIndex + 1,
             pageCount = state.videos.size,
+            isMuted = state.isMuted,
+            onToggleMute = { onEvent(ShortsUiEvent.OnToggleMute) },
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .safeTopPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 10.dp),
+                .padding(start = 18.dp, end = headerEndPadding, top = 10.dp),
         )
     }
 }
@@ -268,7 +277,7 @@ private fun ShortPage(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .safeBottomPadding()
-                .padding(end = 12.dp, bottom = RAIL_BOTTOM_PADDING),
+                .padding(end = RAIL_END_PADDING, bottom = RAIL_BOTTOM_PADDING),
         )
 
         ShortsOverlay(
@@ -373,3 +382,9 @@ private fun MessageContent(
 private val RAIL_BOTTOM_PADDING = 44.dp
 private val OVERLAY_BOTTOM_PADDING = 34.dp
 private val PROGRESS_BOTTOM_PADDING = 18.dp
+
+/** The rail's 50dp tiles sit this far in from the end edge. */
+private val RAIL_END_PADDING = 12.dp
+
+/** Header end padding in landscape: the rail's tile, its end padding, and a gap before the header. */
+private val RAIL_CLEARANCE = RAIL_END_PADDING + 50.dp + 12.dp

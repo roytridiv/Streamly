@@ -461,3 +461,30 @@ I found an insets/padding issue when rotating the app to landscape mode. Please 
 
 Please review the root Scaffold, NavHost, Video Player Screen, and Navigation Rail/Bar composables, and apply the proper `WindowInsets` padding so the layout stays within the safe screen boundaries in landscape mode.
 ````
+
+## 2026-10-04 00:27:16 BST · session `9e48e493`
+
+````text
+
+
+<pasted_content id="ceab">
+Implement Mute / Unmute (audio volume control) functionality for the Android video player in this branch:
+
+1. Controller & State:
+   - Add an `isMuted` state (Boolean) to the video player state / controller (e.g., `ShortsPlayerController` or ViewModel).
+   - Implement `setMuted(muted: Boolean)` and `toggleMute()` functions to handle audio state changes.
+
+2. Media3 / ExoPlayer Logic:
+   - Update the ExoPlayer / Player instance volume: set `player.volume = 0f` when `isMuted` is true, and restore `player.volume = 1f` (or previous non-zero volume) when unmuted.
+
+3. UI & Controls:
+   - Add a Mute/Unmute toggle button to the video player overlay UI.
+   - Show appropriate state icons (e.g., volume on / volume off icons) based on `isMuted`. 
+</pasted_content id="ceab">
+````
+
+## 2026-10-04 00:45:18 BST · session `9e48e493`
+
+````text
+issue : when the video is in landscape the mute button goes overlapped on the like button
+````

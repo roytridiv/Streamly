@@ -41,6 +41,9 @@ class ShortsPlayerPool @Inject constructor(
     /** Page index loaded into each player slot, or `-1` when empty. */
     private val assignedIndex = IntArray(POOL_SIZE) { NO_INDEX }
 
+    /** Volume to go back to on unmute: the last non-zero level the pool played at. */
+    private var unmutedVolume = 1f
+
     /** The player showing [index], or `null` if that page isn't loaded into the pool. */
     fun playerFor(index: Int): Player? =
         players[slotOf(index)].takeIf { assignedIndex[slotOf(index)] == index }
@@ -72,6 +75,19 @@ class ShortsPlayerPool @Inject constructor(
 
     fun pauseAll() {
         players.forEach { it.pause() }
+    }
+
+    /**
+     * Mutes or unmutes every player in the pool, not just the playing one, so the preloaded page
+     * starts in the same state when the user swipes to it.
+     *
+     * Unmuting restores the last audible volume rather than assuming full volume.
+     */
+    fun setMuted(muted: Boolean) {
+        if (muted) {
+            players.first().volume.takeIf { it > 0f }?.let { unmutedVolume = it }
+        }
+        players.forEach { it.volume = if (muted) 0f else unmutedVolume }
     }
 
     fun release() {

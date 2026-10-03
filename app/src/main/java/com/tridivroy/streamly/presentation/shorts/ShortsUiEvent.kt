@@ -7,6 +7,7 @@ sealed interface ShortsUiEvent {
     /** The pager came to rest on [index]. */
     data class OnPageSettled(val index: Int) : ShortsUiEvent
     data object OnTogglePlay : ShortsUiEvent
+    data object OnToggleMute : ShortsUiEvent
     data class OnLikeClick(val videoId: String) : ShortsUiEvent
     data class OnSaveClick(val videoId: String) : ShortsUiEvent
     /** [channelHandle] without the leading "@". */

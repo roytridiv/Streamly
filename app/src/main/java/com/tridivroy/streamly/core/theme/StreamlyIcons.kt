@@ -124,6 +124,16 @@ object StreamlyIcons {
         stroked("Close", "M6 6l12 12M18 6 6 18", strokeWidth = 1.8f)
     }
 
+    /** Speaker with two sound waves — audio on. */
+    val VolumeOn: ImageVector by lazy {
+        stroked("VolumeOn", SPEAKER_PATH + "M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8", strokeWidth = 1.8f)
+    }
+
+    /** The same speaker with a cross where the waves were — muted. */
+    val VolumeOff: ImageVector by lazy {
+        stroked("VolumeOff", SPEAKER_PATH + "M16 9.5l5 5M21 9.5l-5 5", strokeWidth = 1.8f)
+    }
+
     /** Four corner brackets pointing out — enter fullscreen. */
     val Fullscreen: ImageVector by lazy {
         stroked(
@@ -192,6 +202,8 @@ object StreamlyIcons {
 
     private const val HEART_PATH =
         "M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"
+
+    private const val SPEAKER_PATH = "M4 9.5h3.5L12 5.5v13l-4.5-4H4z"
 
     private const val SAVE_PATH = "M7 4h10v16l-5-3.6L7 20z"
 

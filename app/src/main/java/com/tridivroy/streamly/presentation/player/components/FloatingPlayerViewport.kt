@@ -71,8 +71,8 @@ import kotlinx.coroutines.delay
  * mint ambient glow, with the existing Media3 [PlayerView] inside it.
  *
  * Everything drawn on top — the watermark, the centre play/pause and the scrubber — is Compose over
- * the video surface, so the Media3 setup is untouched; only [onTogglePlay] and [onSeekTo] reach back
- * into the player.
+ * the video surface, so the Media3 setup is untouched; only [onTogglePlay], [onSeekTo] and
+ * [onToggleMute] reach back into the player.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -83,6 +83,8 @@ fun FloatingPlayerViewport(
     onTogglePlay: () -> Unit,
     onSeekTo: (positionMs: Long) -> Unit,
     onToggleFullscreen: () -> Unit,
+    isMuted: Boolean,
+    onToggleMute: () -> Unit,
     modifier: Modifier = Modifier,
     isFullscreen: Boolean = false,
     controls: PlayerControlsState = rememberPlayerControlsState(),
@@ -199,6 +201,11 @@ fun FloatingPlayerViewport(
                     onToggleFullscreen()
                     controls.keepVisible()
                 },
+                isMuted = isMuted,
+                onToggleMute = {
+                    onToggleMute()
+                    controls.keepVisible()
+                },
             )
         }
     }
@@ -246,6 +253,8 @@ private fun ScrubberBar(
     onSeekTo: (positionMs: Long) -> Unit,
     onScrub: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    isMuted: Boolean,
+    onToggleMute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -368,9 +377,24 @@ private fun ScrubberBar(
                 style = StreamlyType.Timestamp,
                 color = StreamlyBrand.OnMediaVariant,
             )
+            MuteButton(isMuted = isMuted, onClick = onToggleMute)
             FullscreenButton(isFullscreen = isFullscreen, onClick = onToggleFullscreen)
         }
     }
+}
+
+@Composable
+private fun MuteButton(
+    isMuted: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OverlayIconButton(
+        icon = if (isMuted) StreamlyIcons.VolumeOff else StreamlyIcons.VolumeOn,
+        contentDescription = stringResource(if (isMuted) R.string.player_unmute else R.string.player_mute),
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
