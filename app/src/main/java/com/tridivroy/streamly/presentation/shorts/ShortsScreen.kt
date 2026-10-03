@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -57,6 +55,8 @@ import com.tridivroy.streamly.core.theme.StreamlyBrand
 import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.presentation.common.rememberPlaybackProgress
+import com.tridivroy.streamly.presentation.common.safeBottomPadding
+import com.tridivroy.streamly.presentation.common.safeTopPadding
 import com.tridivroy.streamly.presentation.shorts.components.ShortsAction
 import com.tridivroy.streamly.presentation.shorts.components.ShortsActionRail
 import com.tridivroy.streamly.presentation.shorts.components.ShortsHeader
@@ -184,7 +184,7 @@ private fun ShortsPager(
             pageCount = state.videos.size,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .statusBarsPadding()
+                .safeTopPadding()
                 .padding(start = 18.dp, end = 18.dp, top = 10.dp),
         )
     }
@@ -267,7 +267,7 @@ private fun ShortPage(
             ),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
+                .safeBottomPadding()
                 .padding(end = 12.dp, bottom = RAIL_BOTTOM_PADDING),
         )
 
@@ -277,7 +277,7 @@ private fun ShortPage(
             onFollowClick = { onEvent(ShortsUiEvent.OnFollowClick(video.channel.handle)) },
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .navigationBarsPadding()
+                .safeBottomPadding()
                 .padding(start = 16.dp, end = 80.dp, bottom = OVERLAY_BOTTOM_PADDING),
         )
 
@@ -285,7 +285,7 @@ private fun ShortPage(
             fraction = progress.fraction,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
+                .safeBottomPadding()
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(bottom = PROGRESS_BOTTOM_PADDING),
@@ -351,7 +351,7 @@ private fun MessageContent(
 ) {
     Column(
         modifier = modifier
-            .statusBarsPadding()
+            .safeTopPadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,

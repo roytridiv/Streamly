@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -37,6 +39,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.tridivroy.streamly.MainViewModel
 import com.tridivroy.streamly.R
 import com.tridivroy.streamly.core.theme.StreamlyIcons
+import com.tridivroy.streamly.presentation.common.safeBottomPadding
 import com.tridivroy.streamly.presentation.downloads.DownloadsRoute
 import com.tridivroy.streamly.presentation.home.HomeRoute
 import com.tridivroy.streamly.presentation.navigation.components.MiniPlayer
@@ -148,13 +151,20 @@ fun StreamlyNavGraph(
                 Box(
                     Modifier
                         .weight(1f)
-                        // The bar below already sits over the system navigation bar, so screens above
-                        // it must not pad for those insets a second time.
+                        /*
+                         * Whichever bar is up has already taken its edge, so screens above must not pad
+                         * for that edge a second time: the bottom bar owns the bottom inset, and the rail
+                         * owns the leading one (the side the navigation bar lands on in landscape).
+                         */
                         .then(
-                            if (showBottomBar) {
-                                Modifier.consumeWindowInsets(WindowInsets.navigationBars)
-                            } else {
-                                Modifier
+                            when {
+                                showBottomBar -> Modifier.consumeWindowInsets(
+                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
+                                )
+                                showNavBar -> Modifier.consumeWindowInsets(
+                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Start),
+                                )
+                                else -> Modifier
                             },
                         ),
                 ) {
@@ -221,6 +231,10 @@ fun StreamlyNavGraph(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
+                                // No-op under the bottom bar, which consumes the bottom inset; in
+                                // landscape there is no bottom bar and this keeps the dock clear of
+                                // the gesture strip.
+                                .safeBottomPadding()
                                 .padding(horizontal = 10.dp, vertical = 6.dp),
                         )
                     }

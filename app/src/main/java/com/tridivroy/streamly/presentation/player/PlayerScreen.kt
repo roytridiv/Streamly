@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -77,6 +75,8 @@ import com.tridivroy.streamly.domain.model.Chapter
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.presentation.common.rememberPlaybackProgress
+import com.tridivroy.streamly.presentation.common.safeBottomPadding
+import com.tridivroy.streamly.presentation.common.safeTopPadding
 import com.tridivroy.streamly.presentation.components.StreamlyToastHost
 import com.tridivroy.streamly.presentation.components.rememberToastState
 import com.tridivroy.streamly.presentation.player.components.FloatingPlayerViewport
@@ -279,7 +279,7 @@ private fun PlayerContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding(),
+            .safeTopPadding(),
     ) {
         PlayerHeader(onBack = onBack)
         Spacer(Modifier.height(4.dp))
@@ -417,7 +417,7 @@ private fun SuccessContent(
                 Modifier
                     .weight(0.4f)
                     .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding(),
+                    .safeBottomPadding(),
             )
         }
     } else {
@@ -425,7 +425,7 @@ private fun SuccessContent(
             modifier = modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding(),
+                .safeBottomPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Breathing room between the header and the viewport, which otherwise sat tight under it.

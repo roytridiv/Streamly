@@ -444,3 +444,20 @@ Fix blurry logo animation rendering in StreamlySplash / Splash animation:
    - Ensure hardware acceleration is enabled and remove any unnecessary software layer rasterization (`graphicsLayer` scaling should maintain crisp vector resolution).
    - If drawing directly with `DrawScope.drawPath`, ensure crisp stroke joins, anti-aliasing (`isAntiAlias = true`), and correct viewport scaling without off-screen bitmap caching.
 ````
+
+## 2026-10-03 11:59:40 BST · session `196cf442`
+
+````text
+I found an insets/padding issue when rotating the app to landscape mode. Please fix the Edge-to-Edge UI layout in landscape orientation.
+
+### **Issue Details:**
+1. **Video Player UI Overlaps Gesture Nav:** When auto-rotate is ON and I open a video in landscape mode, parts of the video player UI and interactive buttons go under the Android Gesture Navigation bar, making them unclickable.
+2. **Navigation Bar / Rail Layout Bug:** In landscape, the app's navigation UI moves to the left side and appears oversized or improperly padded against the system gesture bar area.
+
+### **Expected Behavior:**
+1. The entire screen UI (Video Player, Controls, and Navigation Bar/Rail) must strictly respect Android System Insets (`WindowInsets.safeDrawing`, `WindowInsets.systemBars`, or `WindowInsets.navigationBars`).
+2. No clickable UI elements or buttons should ever clip or go beneath the Android gesture navigation area in either Portrait or Landscape mode.
+3. Ensure proper consumption of window insets across the root scaffold and video screen using Compose `Modifier.systemBarsPadding()`, `Modifier.navigationBarsPadding()`, or `WindowInsets.safeDrawing`.
+
+Please review the root Scaffold, NavHost, Video Player Screen, and Navigation Rail/Bar composables, and apply the proper `WindowInsets` padding so the layout stays within the safe screen boundaries in landscape mode.
+````

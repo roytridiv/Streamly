@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -39,6 +38,7 @@ import com.tridivroy.streamly.core.theme.TextMuted
 import com.tridivroy.streamly.domain.model.Channel
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoStats
+import com.tridivroy.streamly.presentation.common.safeTopPadding
 import com.tridivroy.streamly.presentation.home.components.CategoryChips
 import com.tridivroy.streamly.presentation.home.components.HomeTopBar
 import com.tridivroy.streamly.presentation.home.components.TopBarAction
@@ -84,7 +84,7 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
+            .safeTopPadding()
             .padding(top = 10.dp),
     ) {
         HomeTopBar(

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -42,6 +41,7 @@ import com.tridivroy.streamly.domain.model.Channel
 import com.tridivroy.streamly.domain.model.DownloadStatus
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoDownload
+import com.tridivroy.streamly.presentation.common.safeTopPadding
 import com.tridivroy.streamly.presentation.downloads.components.DownloadRow
 import com.tridivroy.streamly.presentation.downloads.components.FadedDivider
 import com.tridivroy.streamly.presentation.downloads.components.StorageUsageCard
@@ -79,7 +79,7 @@ fun DownloadsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
+            .safeTopPadding()
             .padding(top = 10.dp),
     ) {
         DownloadsHeader(
