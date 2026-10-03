@@ -1,6 +1,5 @@
 package com.tridivroy.streamly.data.repository
 
-import android.util.Log
 import com.tridivroy.streamly.data.mapper.toDomain
 import com.tridivroy.streamly.data.remote.dto.VideoDto
 import com.tridivroy.streamly.domain.model.Channel
@@ -8,17 +7,18 @@ import com.tridivroy.streamly.domain.model.Chapter
 import com.tridivroy.streamly.domain.model.Video
 import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.domain.repository.VideoRepository
+import com.tridivroy.streamly.shared.currentTimeMillis
+import com.tridivroy.streamly.shared.platformLog
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Fetches videos from the Streamly API. When the API is unreachable or fails,
  * falls back to public HLS test streams so the app always has playable content.
  */
-class VideoRepositoryImpl @Inject constructor(
+class VideoRepositoryImpl(
     private val client: HttpClient,
 ) : VideoRepository {
 
@@ -38,7 +38,7 @@ class VideoRepositoryImpl @Inject constructor(
 
         val fallback = (FALLBACK_HOME + FALLBACK_SHORTS).find { it.id == id }
         return if (fallback != null) {
-            Log.w(TAG, "getVideoById($id) failed, using fallback", remote.exceptionOrNull())
+            platformLog(TAG, "getVideoById($id) failed, using fallback", remote.exceptionOrNull())
             Result.success(fallback)
         } else {
             remote
@@ -50,7 +50,7 @@ class VideoRepositoryImpl @Inject constructor(
         fetch: suspend () -> List<Video>,
     ): Result<List<Video>> {
         val remote = runCatchingCancellable { fetch() }
-        remote.exceptionOrNull()?.let { Log.w(TAG, "Remote fetch failed, using fallback", it) }
+        remote.exceptionOrNull()?.let { platformLog(TAG, "Remote fetch failed, using fallback", it) }
         return Result.success(remote.getOrElse { fallback })
     }
 
@@ -74,7 +74,7 @@ class VideoRepositoryImpl @Inject constructor(
         fun avatar(seed: String) = "https://picsum.photos/seed/$seed-avatar/96/96"
 
         /** Upload time [daysAgo] days before class init, for the "3 days ago" label. */
-        fun daysAgo(daysAgo: Long): Long = System.currentTimeMillis() / 1000 - daysAgo * 86_400
+        fun daysAgo(daysAgo: Long): Long = currentTimeMillis() / 1000 - daysAgo * 86_400
 
         fun chapters(vararg pairs: Pair<Long, String>): List<Chapter> =
             pairs.map { (position, label) -> Chapter(position, label) }

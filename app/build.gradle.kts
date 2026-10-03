@@ -42,6 +42,9 @@ android {
 }
 
 dependencies {
+    // Shared Kotlin Multiplatform layer (domain models, DTOs, Ktor networking, repositories)
+    implementation(project(":shared"))
+
     // Core & Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
@@ -63,13 +66,9 @@ dependencies {
     implementation("androidx.navigation3:navigation3-ui:1.1.7")
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
-    // Ktor Client
-    val ktorVersion = "2.3.11"
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-client-logging:$ktorVersion")
+    // Ktor is no longer declared here: the client and its engine come from :shared, which pins the
+    // version for both platforms. Only the Hilt bridge in SharedBridgeModule still names the type.
+    implementation(libs.ktor.client.core)
 
     // Media3 (ExoPlayer, HLS, Download)
     val media3Version = "1.4.1"

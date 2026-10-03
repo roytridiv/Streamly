@@ -1,6 +1,6 @@
 # Prompt History
 
-Raw prompts captured automatically by the UserPromptSubmit hook (`.claude/hooks/log-prompt.sh`).
+Raw prompts captured automatically by the UserPromptSubmit hook (`.claude/hooks/log-prompt.sh`). This is the trunk log; prompts made on a feature branch go to that branch's own `docs/prompt-history-<branch>.md` (currently `docs/prompt-history-kmp-migration.md`).
 
 <!-- Backfilled from earlier Claude Code session transcripts -->
 
@@ -461,3 +461,4 @@ I found an insets/padding issue when rotating the app to landscape mode. Please 
 
 Please review the root Scaffold, NavHost, Video Player Screen, and Navigation Rail/Bar composables, and apply the proper `WindowInsets` padding so the layout stays within the safe screen boundaries in landscape mode.
 ````
+

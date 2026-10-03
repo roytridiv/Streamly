@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Streamly"
 include(":app")
+include(":shared")
  

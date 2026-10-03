@@ -23,7 +23,7 @@
 
 ## Agent Execution Log & Prompt History
 Chronological log of the key agent prompt workflows. Append new entries at the bottom; keep each entry short and point to the files it touched.
-Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-history.md` by the `UserPromptSubmit` hook in `.claude/settings.json`.
+Raw prompts (verbatim, timestamped) are captured automatically by the `UserPromptSubmit` hook in `.claude/settings.json`. The hook is branch-aware: trunk prompts go to `docs/prompt-history.md`, and a feature branch gets its own `docs/prompt-history-<branch>.md` so a long-lived branch does not conflict with the trunk on every prompt.
 
 | # | Workflow | Status | Commit |
 |---|----------|--------|--------|
