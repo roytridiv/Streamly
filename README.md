@@ -442,7 +442,6 @@ Streamly was built **agentically**: AI assistants wrote most of the code, and a 
 ## 🧭 Known Limitations & Roadmap
 
 - [ ] **Unit tests** for ViewModels (Turbine + fake repositories) and `VideoRepositoryImpl`'s fallback logic.
-- [ ] **Replace a dead fallback link:** Google's `ForBiggerBlazes.mp4` sample now returns `403 Forbidden`.
 - [ ] Resuming a paused download from the **notification**. Pausing ends Media3's foreground service, so for now resume from the Downloads screen.
 - [ ] Real backend + authentication.
 - [ ] Split into Gradle modules. Add a Room cache for feeds.

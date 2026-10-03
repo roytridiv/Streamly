@@ -2,7 +2,7 @@
 
 Streamly is a 100% Jetpack Compose video app: an Onboarding/Auth gate, a Home feed, a tabbed Player, a TikTok/Reels-style Shorts feed, offline HLS downloads, and a Profile screen — all in the Nordic Mint design. This guide explains how it is put together, why the key decisions were made, and where to find things.
 
-> **Status** — Workflows 1–13 in [`AGENTS.md`](../AGENTS.md) are implemented; 7–13 are committed-pending. Since workflow 8 the UI follows the Nordic Mint design handoff, and the app opens on an Onboarding/Auth screen. Smoke-tested on a physical device (moto e5 plus, Android 8.0 / API 26) in workflows 12 and 13. The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
+> **Status** — Workflows 1–15 in [`AGENTS.md`](../AGENTS.md) are implemented and committed, along with the later player work: mute/unmute (Player and Shorts), ±10s seek, and a Player screen that hides the bottom bar. Since workflow 8 the UI follows the Nordic Mint design handoff, and the app opens on an Onboarding/Auth screen. Smoke-tested on physical devices: moto e5 plus (Android 8.0 / API 26) in workflows 12, 13 and 15, and SM-M015G (Android 10) in workflows 5 and 6. The [README](../README.md) screenshots come from a Galaxy A36 (Android 16). The backend base URL is still a placeholder (`BuildConfig.BASE_URL`), so the app runs on built-in public HLS test streams (see [Q8](#q8-what-happens-when-the-api-is-unreachable)).
 
 ---
 
@@ -136,7 +136,7 @@ PlayerScreen "Download"  ─► PlayerViewModel ─► DownloadRepository.downlo
 - **The back stack is a list you own.** `StreamlyNavGraph` (in `NavGraph.kt`; called `StreamlyNavDisplay` before Step 5) creates it with `rememberNavBackStack(...)`, which is saveable and survives rotation and process death. Navigating is `backStack.add(PlayerKey(id))`, and going back is `removeLastOrNull()`.
 - **The start destination depends on the session.** `MainViewModel.hasSession` is `Boolean?`; while it is `null` the graph renders a bare background and waits rather than guessing, because rooting at Home and then yanking a returning user to onboarding (or the reverse) is visible. The root is then `HomeKey` or `OnboardingKey`, evaluated once. Signing in and signing out move the stack explicitly with `resetTo(key)`, which pushes before trimming so the stack is never momentarily empty.
 - **Tabs** sit on top of the Home root: `[Home]`, `[Home, Shorts]`, `[Home, Downloads]`. Selecting a tab pops back to Home and then pushes the tab, so system back always returns to Home. Leaving Shorts pops its entry, which frees its player pool.
-- **Adaptive chrome.** A custom `StreamlyBottomBar` on compact widths and a `StreamlyNavRail` on medium and expanded widths. The bar is shown on the three tabs **and on the Player**, so a tab is always one tap away while something plays; it is hidden for fullscreen playback, Onboarding and Profile. Which tab is highlighted is found by scanning *down* the stack, since the Player sits on top of whichever tab opened it. The box holding `NavDisplay` consumes whichever edge the visible bar already owns — the bottom inset under the bar, the leading one beside the rail — so screens above it do not pad for it twice.
+- **Adaptive chrome.** A custom `StreamlyBottomBar` on compact widths and a `StreamlyNavRail` on medium and expanded widths. The bar is shown on the three tabs only. The Player, Onboarding and Profile hide it and take the full height; leaving the Player hands the video to the mini-player, so switching tabs never stops playback. (Workflow 11 had put the bar on the Player; that was reversed so the video gets the whole screen. The Player already pads its own top and bottom with `safeTopPadding()`/`safeBottomPadding()`, so its content runs edge to edge and its last item clears the system bar.) Which tab is highlighted is the topmost tab in the stack. The box holding `NavDisplay` consumes whichever edge the visible bar already owns — the bottom inset under the bar, the leading one beside the rail — so screens above it do not pad for it twice; with no bar, nothing is consumed and the screen handles its own insets.
 - **Mini-player.** While the shared player holds a video, a 58dp mini-player docks above the bar on Home and Downloads (keyed on the top of the stack, so it never covers the Player itself). It carries a play/pause toggle and a close button; closing calls `NowPlayingStore.dismiss()`, which stops playback and clears the media items -- clearing them is what removes the bar. `PlayerViewModel.onCleared()` deliberately leaves playback running so this handover works; `NowPlayingStore.pause()` is called when the Shorts pool takes over, to keep the "1–2 active players" rule.
 - **ViewModel scoping** uses two entry decorators on `NavDisplay`:
   - `rememberSaveableStateHolderNavEntryDecorator()`: per-entry `rememberSaveable` state.
@@ -246,6 +246,7 @@ Paths are relative to `app/src/main/java/com/tridivroy/streamly/`.
 | Config | `AndroidManifest.xml` | Download service (`dataSync`), `PlatformSchedulerService`, permissions |
 | Tooling | `AGENTS.md` (symlinked as `CLAUDE.md`, `.cursorrules`) | Architecture rules + execution log |
 | Tooling | `.claude/settings.json`, `.claude/hooks/log-prompt.sh`, `docs/prompt-history.md` | Automatic raw prompt history |
+| Docs | `README.md`, `docs/screenshots/` | Setup guide, feature tour, trade-offs and the AI collaboration story; on-device screenshots |
 
 ---
 
@@ -307,12 +308,21 @@ It flips one piece of saveable state in `PlayerScreen`. The same `FloatingPlayer
 #### Q14. How does the app stay out of the system bars when it draws edge to edge?
 Through three helpers in `presentation/common/SafeInsets.kt` rather than the usual `statusBarsPadding()` / `navigationBarsPadding()`. Those two pad only the top or bottom edge, and in landscape the navigation bar and any display cutout move to a *side* — content then slides underneath them. `safeTopPadding()` and `safeBottomPadding()` use `WindowInsets.safeDrawing` and always include the horizontal sides; `safeOverlayPadding(sides)` uses `safeContent` (= `safeDrawing` + `safeGestures`) and is for controls drawn over fullscreen video, where the bars are hidden so `safeDrawing` reports zero while the home indicator and the back-gesture edges still intercept touches. Each bar pads only the edge it hugs — the bottom bar `Bottom + Horizontal`, the rail `Start + Vertical` — and the content area consumes that same edge, so no inset is applied twice and the rail is not inflated by padding its inboard side.
 
+#### Q15. How does mute work, and why does it survive a swipe or a new video?
+Mute is a volume change, not an audio-track change: `setMuted(true)` sets `player.volume = 0f` and remembers the last non-zero volume, which `setMuted(false)` restores. No tracks are re-selected, so unmuting is instant.
+- **Player.** `PlayerViewModel.setMuted()` / `toggleMute()` change the shared player's volume only; `isMuted` in `PlayerUiState.Success` follows from `Player.Listener.onVolumeChanged`, so the player is the single source of truth. Because the player is shared, a mute carries over to the next video and to the mini-player, and a new `PlayerViewModel` reads it back from `exoPlayer.volume`. The button sits in the scrubber row beside fullscreen.
+- **Shorts.** `ShortsPlayerPool.setMuted()` applies to **both** pooled players, so the preloaded page is already muted when the user swipes to it. `ShortsViewModel` keeps the choice in a field as well as in the state, because a Retry rebuilds the state but not the pool. The button sits in the header next to the page counter, which is above the pager and so is one control for the whole feed. In landscape the header's end padding clears the action rail, which runs up to the top edge there and would otherwise cover it.
+
+#### Q16. What do the ±10s buttons do at the edges of a video?
+`PlayerViewModel.seekForward(millis = 10_000)` and `seekBackward(millis = 10_000)`, sent as `OnSeekForward` / `OnSeekBackward`. Backward clamps at 0. Forward clamps at `player.duration` — but only once the duration is known: before the media is prepared it is `C.TIME_UNSET`, and clamping to it would seek to a nonsense position, so the jump is left unclamped until then. The buttons flank the centre play/pause as smaller 44dp versions of the same frosted circle, appear in both the floating and fullscreen viewport, and count as an interaction, so the overlay's auto-hide restarts. The Replay 10 / Forward 10 icons are drawn in `StreamlyIcons` like the rest of the set, not taken from `material-icons-extended`.
+
 ---
 
 ### Known gaps / next steps
 
 - Split layers into Gradle modules ([Q1](#q1-are-core-data-domain-and-presentation-separate-gradle-modules)).
-- Replace the placeholder `BASE_URL` and review the fallback streams for release builds.
+- Replace the placeholder `BASE_URL` and review the fallback streams for release builds (public test URLs can disappear: Google's `ForBiggerBlazes.mp4` sample started returning `403 Forbidden` and was removed).
+- Mute and ±10s seek are built and committed but have not yet been through an on-device test pass.
 - There is no favourites list screen yet; favourites drive the Shorts/Player like state and the Profile stat.
 - No download-complete notification, and a failed retry from the Downloads list shows no extra message.
 - Resuming a paused download has to happen in-app: Media3 stops the foreground service when nothing is in flight, so the notification is gone by then.
