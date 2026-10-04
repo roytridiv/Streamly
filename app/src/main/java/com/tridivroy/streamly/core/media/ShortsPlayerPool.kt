@@ -77,6 +77,20 @@ class ShortsPlayerPool @Inject constructor(
         players.forEach { it.pause() }
     }
 
+    /** Listens to every player in the pool; use [Player.Listener.onEvents] to tell them apart. */
+    fun addListener(listener: Player.Listener) {
+        players.forEach { it.addListener(listener) }
+    }
+
+    /**
+     * After a network drop: re-prepares any player that errored (both the playing and the preloaded
+     * slot can have), then resumes [activeIndex]. A player that only stalled resumes as is.
+     */
+    fun recover(activeIndex: Int) {
+        players.forEach { if (it.playerError != null) it.prepare() }
+        play(activeIndex)
+    }
+
     /**
      * Mutes or unmutes every player in the pool, not just the playing one, so the preloaded page
      * starts in the same state when the user swipes to it.

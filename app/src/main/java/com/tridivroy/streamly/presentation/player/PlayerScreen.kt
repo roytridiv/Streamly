@@ -1,5 +1,8 @@
 package com.tridivroy.streamly.presentation.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
@@ -64,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.presentation.components.NoInternetMessage
+import com.tridivroy.streamly.presentation.components.NoInternetOverlay
 import com.tridivroy.streamly.core.theme.StreamlyBrand
 import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.core.theme.StreamlyShape
@@ -236,27 +241,33 @@ private fun FullscreenPlayer(
     val progress by rememberPlaybackProgress(player)
     val controls = rememberPlayerControlsState()
 
-    FloatingPlayerViewport(
-        player = player,
-        progress = progress,
-        chapters = state.video.chapters,
-        onTogglePlay = { if (player.isPlaying) player.pause() else player.play() },
-        onSeekTo = { positionMs ->
-            player.seekTo(positionMs)
-            if (!player.isPlaying) player.play()
-            controls.keepVisible()
-        },
-        onToggleFullscreen = onToggleFullscreen,
-        isMuted = state.isMuted,
-        onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
-        onSeekBackward = { onEvent(PlayerUiEvent.OnSeekBackward) },
-        onSeekForward = { onEvent(PlayerUiEvent.OnSeekForward) },
-        isFullscreen = true,
-        controls = controls,
+    OfflineAware(
+        isOffline = state.isOffline,
+        onRetry = { onEvent(PlayerUiEvent.Retry) },
         modifier = modifier
             .fillMaxSize()
             .background(StreamlyBrand.Letterbox),
-    )
+    ) {
+        FloatingPlayerViewport(
+            player = player,
+            progress = progress,
+            chapters = state.video.chapters,
+            onTogglePlay = { if (player.isPlaying) player.pause() else player.play() },
+            onSeekTo = { positionMs ->
+                player.seekTo(positionMs)
+                if (!player.isPlaying) player.play()
+                controls.keepVisible()
+            },
+            onToggleFullscreen = onToggleFullscreen,
+            isMuted = state.isMuted,
+            onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
+            onSeekBackward = { onEvent(PlayerUiEvent.OnSeekBackward) },
+            onSeekForward = { onEvent(PlayerUiEvent.OnSeekForward) },
+            isFullscreen = true,
+            controls = controls,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
 }
 
 @Composable
@@ -282,6 +293,11 @@ private fun PlayerContent(
             PlayerUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
+
+            PlayerUiState.Offline -> NoInternetMessage(
+                onRetry = { onEvent(PlayerUiEvent.Retry) },
+                modifier = Modifier.fillMaxSize(),
+            )
 
             PlayerUiState.Empty -> MessageContent(
                 message = stringResource(R.string.player_empty),
@@ -334,20 +350,25 @@ private fun SuccessContent(
     }
 
     val viewport: @Composable (Modifier) -> Unit = { viewportModifier ->
-        FloatingPlayerViewport(
-            player = player,
-            progress = progress,
-            chapters = state.video.chapters,
-            onTogglePlay = togglePlay,
-            onSeekTo = seekToMs,
-            onToggleFullscreen = onToggleFullscreen,
-            isMuted = state.isMuted,
-            onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
-            onSeekBackward = { onEvent(PlayerUiEvent.OnSeekBackward) },
-            onSeekForward = { onEvent(PlayerUiEvent.OnSeekForward) },
-            controls = controls,
+        OfflineAware(
+            isOffline = state.isOffline,
+            onRetry = { onEvent(PlayerUiEvent.Retry) },
             modifier = viewportModifier,
-        )
+        ) {
+            FloatingPlayerViewport(
+                player = player,
+                progress = progress,
+                chapters = state.video.chapters,
+                onTogglePlay = togglePlay,
+                onSeekTo = seekToMs,
+                onToggleFullscreen = onToggleFullscreen,
+                isMuted = state.isMuted,
+                onToggleMute = { onEvent(PlayerUiEvent.OnToggleMute) },
+                onSeekBackward = { onEvent(PlayerUiEvent.OnSeekBackward) },
+                onSeekForward = { onEvent(PlayerUiEvent.OnSeekForward) },
+                controls = controls,
+            )
+        }
     }
 
     val details: @Composable (Modifier) -> Unit = { detailsModifier ->
@@ -483,6 +504,30 @@ private fun HeaderIconButton(
             tint = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.size(22.dp),
         )
+    }
+}
+
+/**
+ * Lays the no-internet overlay over [content] (the video viewport) while [isOffline], keeping the
+ * viewport — and the frame it stalled on — in place underneath.
+ */
+@Composable
+private fun OfflineAware(
+    isOffline: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(modifier) {
+        content()
+        AnimatedVisibility(
+            visible = isOffline,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.matchParentSize(),
+        ) {
+            NoInternetOverlay(onRetry = onRetry, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 

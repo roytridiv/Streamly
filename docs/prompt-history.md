@@ -608,3 +608,26 @@ Hide the app's Bottom Navigation Bar when the user is on the Video Player screen
 ````text
 I have also added a screen shot of the notification here , ad that in the readme as well
 ````
+
+## 2026-10-04 11:22:54 +06 · session `d11e0c80`
+
+````text
+
+
+<pasted_content id="3f88">
+implement a smooth Network Connectivity Check and Error UI for offline/no-internet states across the app:
+
+1. Network Observer / Utility:
+   - Implement or use a NetworkConnectivityObserver using Android's ConnectivityManager to observe network status in real-time.
+
+2. Player & Shorts Screen Handling:
+   - When the network is unavailable and the requested content is NOT locally downloaded:
+     * Catch ExoPlayer / Media3 `PlaybackException` or check connectivity before playback starts.
+     * Stop infinite loading spinners.
+     * Show a clean, user-friendly Compose UI overlay/dialog stating:
+       "No Internet Connection" with a "Retry" button instead of raw source error text.
+
+3. Downloads Exception:
+   - Ensure that videos playing from local `DeviceStorage` (e.g., in Downloads screen or offline mode) bypass the internet check and play normally without network errors.
+</pasted_content id="3f88">
+````

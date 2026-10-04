@@ -22,7 +22,12 @@ sealed interface ShortsUiState {
         val savedIds: Set<String> = emptySet(),
         /** Channel handles the user follows, persisted in DataStore. Drives the Follow pill. */
         val followedChannels: Set<String> = emptySet(),
+        /** The network dropped mid-feed: playback is paused under a "No Internet Connection" overlay. */
+        val isOffline: Boolean = false,
     ) : ShortsUiState
+
+    /** No network when the feed was opened. Retries itself when back online. */
+    data object Offline : ShortsUiState
 
     data object Empty : ShortsUiState
 

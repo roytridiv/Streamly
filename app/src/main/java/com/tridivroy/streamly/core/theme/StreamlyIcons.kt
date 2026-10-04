@@ -205,6 +205,11 @@ object StreamlyIcons {
         stroked("CloudOff", "M7 17h9.5a3.5 3.5 0 0 0 .8-6.9A5 5 0 0 0 8.5 7.6M4 4l16 16")
     }
 
+    /** Wi-Fi arcs struck through: the no-internet state. */
+    val WifiOff: ImageVector by lazy {
+        stroked("WifiOff", "M2.5 8.8a14 14 0 0 1 19 0M5.5 12.2a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0M12 19.2v.1M3.5 3.5l17 17")
+    }
+
     /** No-ads benefit: a slashed circle. */
     val Shield: ImageVector by lazy {
         stroked("Shield", "M12 3.5 5.5 6v5.5c0 4 2.8 7.4 6.5 8.5 3.7-1.1 6.5-4.5 6.5-8.5V6z")

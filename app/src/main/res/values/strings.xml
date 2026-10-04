@@ -139,4 +139,10 @@
     <string name="settings_quality_high">High (1080p)</string>
     <string name="settings_quality_medium">Medium (720p)</string>
     <string name="settings_quality_low">Data saver (480p)</string>
+
+    <!-- No internet -->
+    <string name="no_internet_title">No Internet Connection</string>
+    <string name="no_internet_message">Check your Wi\u2011Fi or mobile data and try again. Downloaded videos still play offline.</string>
+    <string name="no_internet_retry">Retry</string>
+    <string name="no_internet_checking">Checking\u2026</string>
 </resources>

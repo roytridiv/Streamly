@@ -1,5 +1,8 @@
 package com.tridivroy.streamly.presentation.shorts
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.background
@@ -53,6 +56,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.tridivroy.streamly.R
+import com.tridivroy.streamly.presentation.components.NoInternetMessage
+import com.tridivroy.streamly.presentation.components.NoInternetOverlay
 import com.tridivroy.streamly.core.theme.StreamlyBrand
 import com.tridivroy.streamly.core.theme.StreamlyIcons
 import com.tridivroy.streamly.domain.model.Video
@@ -120,6 +125,12 @@ fun ShortsScreen(
             CircularProgressIndicator(color = StreamlyBrand.OnMedia)
         }
 
+        ShortsUiState.Offline -> NoInternetMessage(
+            onRetry = { onEvent(ShortsUiEvent.Retry) },
+            contentColor = StreamlyBrand.OnMedia,
+            modifier = screenModifier.safeTopPadding(),
+        )
+
         ShortsUiState.Empty -> MessageContent(
             message = stringResource(R.string.shorts_empty),
             onRetry = { onEvent(ShortsUiEvent.Retry) },
@@ -184,6 +195,16 @@ private fun ShortsPager(
         // top edge, so the header stops short of the rail's column instead of drawing under it.
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val headerEndPadding = if (isLandscape) RAIL_CLEARANCE else 18.dp
+
+        // Covers the whole pager, so it stays put while the user swipes between stalled pages.
+        AnimatedVisibility(
+            visible = state.isOffline,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.matchParentSize(),
+        ) {
+            NoInternetOverlay(onRetry = { onEvent(ShortsUiEvent.Retry) }, modifier = Modifier.fillMaxSize())
+        }
 
         // Header and position sit above the pager so they do not travel with the pages.
         ShortsHeader(

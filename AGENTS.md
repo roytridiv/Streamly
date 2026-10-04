@@ -42,6 +42,7 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 | 13 | Manual-test UI/UX fixes & download controls | Done (uncommitted) | — |
 | 14 | Crisp splash logo animation | Done (uncommitted) | — |
 | 15 | Edge-to-edge insets in landscape | Done (uncommitted) | — |
+| 16 | Network connectivity check & no-internet UI | Done (uncommitted) | — |
 
 ### 1. Setup & Dependencies
 - Prompt: Configure the version catalog and wire KSP, Hilt, Ktor, Media3, and Navigation 3.
@@ -207,3 +208,12 @@ Raw prompts (verbatim, timestamped) are captured automatically in `docs/prompt-h
 - Screens updated: Home, Downloads, Shorts, Player, Profile, Onboarding.
 - Verified on device (moto e5 plus, API 26, 1440x720 landscape, stable frame `(0,48)-(1344,720)` — 3-button navigation bar on the right edge): landscape Home, every clickable node inside the stable frame, rail 192px wide at x 16–208 (it was padded to roughly 288px before); landscape fullscreen player, window 1440 wide with the bars hidden, "Exit fullscreen" at `[1244,626][1340,720]` — a ~100px inset off the right edge, i.e. clear of the navigation region, which is exactly the overlap reported. Portrait Player: back control at y 76 (below the 48px status bar), bottom nav at y 1224–1332 (above the 1344 bar). No crashes in logcat. `./gradlew assembleDebug` BUILD SUCCESSFUL, only the pre-existing KT-73255 warnings.
 - Caveat: this device runs 3-button navigation, so the gesture-inset path (`safeGestures`, API 29+) could not be exercised on hardware — it was verified by inspection and by the fullscreen inset above, not on a gesture-nav device.
+
+### 16. Network connectivity check & no-internet UI
+- Prompt: Observe connectivity in real time (ConnectivityManager); on Player and Shorts, when offline and the content isn't downloaded, stop the endless spinner and show a "No Internet Connection" UI with Retry instead of raw source errors; downloaded videos must keep playing offline.
+- Connectivity: `domain/repository/ConnectivityObserver.kt` (`isOnline: StateFlow<Boolean>`), `core/network/NetworkConnectivityObserver.kt` (default-network callback, `NET_CAPABILITY_INTERNET`), `core/di/ConnectivityModule.kt`; `ACCESS_NETWORK_STATE` in the manifest.
+- Error classification: `core/media/PlaybackErrors.kt` (`PlaybackException.isNetworkError()`: network/timeout error codes plus `UnknownHost`/`Connect`/`SocketTimeout` in the cause chain).
+- Player: `PlayerUiState.Offline` (can't start: checked before any network call, after looking for a download) and `Success.isOffline` (dropped mid-stream: paused under an overlay on the viewport, inline and fullscreen). Both recover automatically when the network returns; Retry re-prepares only if the player errored. `isPlayingFromDownload` bypasses all offline handling.
+- Shorts: `ShortsUiState.Offline` on open and `Success.isOffline` mid-feed (overlay over the whole pager; swiping stays paused). `ShortsPlayerPool.addListener` / `recover()` re-prepare errored slots on reconnect.
+- UI: `presentation/components/NoInternetMessage.kt` (`NoInternetMessage`, `NoInternetOverlay` that blocks taps to the player underneath; Retry shows "Checking…" briefly so a still-offline retry gives feedback); `StreamlyIcons.WifiOff`; `no_internet_*` strings.
+- Verified on device (Nokia 3.4, Android 12, no network): opening a non-downloaded video shows the no-internet screen immediately, with no spinner. Not yet verified on device: the Shorts screens, the mid-stream overlay, auto-recovery, and a downloaded video playing offline. Testing stopped because someone else was using the phone at the same time.
