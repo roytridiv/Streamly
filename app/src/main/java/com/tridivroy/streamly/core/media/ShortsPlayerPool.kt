@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.RenderersFactory
 import androidx.media3.exoplayer.source.MediaSource
 import com.tridivroy.streamly.domain.model.Video
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,6 +24,7 @@ import javax.inject.Inject
 class ShortsPlayerPool @Inject constructor(
     @ApplicationContext context: Context,
     mediaSourceFactory: MediaSource.Factory,
+    renderersFactory: RenderersFactory,
 ) {
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(C.USAGE_MEDIA)
@@ -30,7 +32,7 @@ class ShortsPlayerPool @Inject constructor(
         .build()
 
     private val players: List<ExoPlayer> = List(POOL_SIZE) {
-        ExoPlayer.Builder(context)
+        ExoPlayer.Builder(context, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
             .setHandleAudioBecomingNoisy(true)

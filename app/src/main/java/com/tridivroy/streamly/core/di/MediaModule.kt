@@ -13,7 +13,9 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.RenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import dagger.Module
@@ -71,19 +73,34 @@ object MediaModule {
      * Must be first injected on the main thread: the player binds to the
      * creating thread's looper, and the lifecycle observer must be added there.
      */
+    /**
+     * Renderers for every player (and DownloadHelper's track checks), with decoder fallback on.
+     *
+     * Some hardware decoders claim a format but then refuse to configure for it — e.g. Qualcomm's
+     * OMX.qcom.video.decoder.avc on the Nokia 3.4 rejects a 224x100 HLS rendition ("Set Resolution
+     * failed", error -1010). Without fallback that ends playback; with it, Media3 moves on to the
+     * next decoder (typically the software c2.android.avc.decoder) and keeps playing.
+     */
+    @OptIn(UnstableApi::class)
+    @Provides
+    @Singleton
+    fun provideRenderersFactory(@ApplicationContext context: Context): RenderersFactory =
+        DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         mediaSourceFactory: MediaSource.Factory,
+        renderersFactory: RenderersFactory,
     ): ExoPlayer {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        val player = ExoPlayer.Builder(context)
+        val player = ExoPlayer.Builder(context, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
             .setHandleAudioBecomingNoisy(true)

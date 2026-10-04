@@ -7,7 +7,7 @@ import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
-import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.RenderersFactory
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadHelper
 import androidx.media3.exoplayer.offline.DownloadManager
@@ -21,6 +21,12 @@ import com.tridivroy.streamly.domain.model.VideoStats
 import com.tridivroy.streamly.domain.repository.DownloadRepository
 import com.tridivroy.streamly.domain.repository.PreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,12 +43,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * Bridges Media3's [DownloadManager] to the domain [DownloadRepository].
@@ -60,6 +60,7 @@ class DownloadTracker @Inject constructor(
     @ApplicationContext private val context: Context,
     private val downloadManager: DownloadManager,
     private val httpDataSourceFactory: HttpDataSource.Factory,
+    private val renderersFactory: RenderersFactory,
     private val preferencesRepository: PreferencesRepository,
     private val json: Json,
 ) : DownloadRepository {
@@ -108,7 +109,7 @@ class DownloadTracker @Inject constructor(
             val helper = DownloadHelper.forMediaItem(
                 video.toMediaItem(),
                 trackSelection,
-                DefaultRenderersFactory(context),
+                renderersFactory,
                 httpDataSourceFactory,
             )
             try {

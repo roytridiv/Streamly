@@ -631,3 +631,64 @@ implement a smooth Network Connectivity Check and Error UI for offline/no-intern
    - Ensure that videos playing from local `DeviceStorage` (e.g., in Downloads screen or offline mode) bypass the internet check and play normally without network errors.
 </pasted_content id="3f88">
 ````
+
+## 2026-10-04 12:03:36 +06 · session `d11e0c80`
+
+````text
+issue : opened a video and tapped on the download button , encoutered the following error
+````
+
+## 2026-10-04 12:03:41 +06 · session `d11e0c80`
+
+````text
+<pasted_content id="3f88">
+  androidx.media3.exoplayer.ExoPlaybackException: MediaCodecVideoRenderer error, index=0, format=Format(0, null, null, video/avc, avc1.42C00D, 493000, null, [224, 100, 24.0, ColorInfo(Unset color space, Unset color range, Unset color transfer, false, 8bit Luma, 8bit Chroma)], [-1, -1]), format_supported=YES
+                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.handleMessage(ExoPlayerImplInternal.java:640)
+                                                                                                          at android.os.Handler.dispatchMessage(Handler.java:102)
+                                                                                                          at android.os.Looper.loopOnce(Looper.java:201)
+                                                                                                          at android.os.Looper.loop(Looper.java:288)
+                                                                                                          at android.os.HandlerThread.run(HandlerThread.java:67)
+                                                                                                      Caused by: androidx.media3.exoplayer.mediacodec.MediaCodecRenderer$DecoderInitializationException: Decoder init failed: OMX.qcom.video.decoder.avc, Format(0, null, null, video/avc, avc1.42C00D, 493000, null, [224, 100, 24.0, ColorInfo(Unset color space, Unset color range, Unset color transfer, false, 8bit Luma, 8bit Chroma)], [-1, -1])
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.maybeInitCodecWithFallback(MediaCodecRenderer.java:1144)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.maybeInitCodecOrBypass(MediaCodecRenderer.java:588)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.onInputFormatChanged(MediaCodecRenderer.java:1602)
+                                                                                                          at androidx.media3.exoplayer.video.MediaCodecVideoRenderer.onInputFormatChanged(MediaCodecVideoRenderer.java:1182)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.readSourceOmittingSampleData(MediaCodecRenderer.java:1042)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.render(MediaCodecRenderer.java:860)
+                                                                                                          at androidx.media3.exoplayer.video.MediaCodecVideoRenderer.render(MediaCodecVideoRenderer.java:1018)
+                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.doSomeWork(ExoPlayerImplInternal.java:1136)
+                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.handleMessage(ExoPlayerImplInternal.java:561)
+                                                                                                          at android.os.Handler.dispatchMessage(Handler.java:102) 
+                                                                                                          at android.os.Looper.loopOnce(Looper.java:201) 
+                                                                                                          at android.os.Looper.loop(Looper.java:288) 
+                                                                                                          at android.os.HandlerThread.run(HandlerThread.java:67) 
+                                                                                                      Caused by: android.media.MediaCodec$CodecException: Error 0xfffffc0e
+                                                                                                          at android.media.MediaCodec.native_configure(Native Method)
+                                                                                                          at android.media.MediaCodec.configure(MediaCodec.java:2176)
+                                                                                                          at android.media.MediaCodec.configure(MediaCodec.java:2092)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.AsynchronousMediaCodecAdapter.initialize(AsynchronousMediaCodecAdapter.java:173)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.AsynchronousMediaCodecAdapter.access$100(AsynchronousMediaCodecAdapter.java:54)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.AsynchronousMediaCodecAdapter$Factory.createAdapter(AsynchronousMediaCodecAdapter.java:119)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.DefaultMediaCodecAdapterFactory.createAdapter(DefaultMediaCodecAdapterFactory.java:137)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.initCodec(MediaCodecRenderer.java:1225)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.maybeInitCodecWithFallback(MediaCodecRenderer.java:1137)
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.maybeInitCodecOrBypass(MediaCodecRenderer.java:588) 
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.onInputFormatChanged(MediaCodecRenderer.java:1602) 
+                                                                                                          at androidx.media3.exoplayer.video.MediaCodecVideoRenderer.onInputFormatChanged(MediaCodecVideoRenderer.java:1182) 
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.readSourceOmittingSampleData(MediaCodecRenderer.java:1042) 
+                                                                                                          at androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.render(MediaCodecRenderer.java:860) 
+                                                                                                          at androidx.media3.exoplayer.video.MediaCodecVideoRenderer.render(MediaCodecVideoRenderer.java:1018) 
+                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.doSomeWork(ExoPlayerImplInternal.java:1136) 
+                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.handleMessage(ExoPlayerImplInternal.java:561) 
+                                                                                                          at android.os.Handler.dispatchMessage(Handler.java:102) 
+                                                                                                          at android.os.Looper.loopOnce(Looper.java:201) 
+                                                                                                          at android.os.Looper.loop(Looper.java:288) 
+                                                                                                          at android.os.HandlerThread.run(HandlerThread.java:67) 
+</pasted_content id="3f88">
+````
+
+## 2026-10-04 12:07:14 +06 · session `d11e0c80`
+
+````text
+have you tested the issue , after fixing , if not test it , a normal smoke test
+````

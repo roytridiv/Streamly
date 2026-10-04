@@ -1,5 +1,6 @@
 package com.tridivroy.streamly.presentation.player
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
@@ -93,7 +94,10 @@ class PlayerViewModel @AssistedInject constructor(
             if (!isPlayingFromDownload && (error.isNetworkError() || !isOnline)) {
                 markOffline()
             } else {
-                _uiState.value = PlayerUiState.Error(error.localizedMessage)
+                // Media3's message ("MediaCodecVideoRenderer error, index=0, format=…") means nothing
+                // to a viewer: log it, and let the screen show its generic "Couldn't play" text.
+                Log.w(TAG, "Playback failed: ${error.errorCodeName}", error)
+                _uiState.value = PlayerUiState.Error(message = null)
             }
         }
 
@@ -372,6 +376,7 @@ class PlayerViewModel @AssistedInject constructor(
     }
 
     private companion object {
+        const val TAG = "PlayerViewModel"
         const val MAX_RELATED_VIDEOS = 10
         const val SEEK_STEP_MS = 10_000L
     }
